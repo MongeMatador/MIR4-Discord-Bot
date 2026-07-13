@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  mir4_engine:
+    build: .
+    container_name: mir4_unified_bot
+    restart: always
+    environment:
+      - SERVER_TIMEZONE=-4
+      - PORT=8080
+    volumes:
+      - ./database.db:/app/database.db
