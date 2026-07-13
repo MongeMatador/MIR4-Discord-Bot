@@ -10,7 +10,6 @@ import aiosqlite
 class ClaimCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.last_alerts = {}
         self.dashboard_updater.start()
 
     def cog_unload(self):
@@ -112,47 +111,22 @@ class ClaimCog(commands.Cog):
             map_label = Config.MAP_DATA[map_type]["label"]
             embed = discord.Embed(title=f"{map_label} | {current_floor}", color=0x9b59b6 if map_type == "MAGIC_SQUARE" else 0xe67e22)
             
-            # SEÇÃO EXCLUSIVA DE INTERCEPTAÇÃO E RENDERIZAÇÃO DE FITAS DE STATUS (TICKERS)
+            # LIVE STATUS TAPE (TICKER) - APENAS RENDERIZAÇÃO VISUAL NO EMBED (SEM PINGS DE SPAM)
             if map_type == "SECRET_PEAK":
                 sul_time, sul_rem, sul_mins = self._calculate_next_fixed_boss("SECRET_PEAK", current_floor, "SUL")
                 norte_time, norte_rem, norte_mins = self._calculate_next_fixed_boss("SECRET_PEAK", current_floor, "NORTE")
                 ticker_line = f"🕒 **[SUL]** Respawn às `{sul_time}` (Falta **{sul_rem}**)\n🕒 **[NORTE]** Respawn às `{norte_time}` (Falta **{norte_rem}**)"
                 embed.add_field(name="📊 LIVE STATUS TAPE | TIMERS FIXOS DO PICO", value=ticker_line, inline=False)
-                
-                for b_name, m_left, t_display in [("SUL", sul_mins, sul_time), ("NORTE", norte_mins, norte_time)]:
-                    if m_left == 15:
-                        ak = f"{current_floor}:{b_name}:{t_display}"
-                        if ak not in self.last_alerts:
-                            self.last_alerts[ak] = True
-                            try: await channel.send(f"⚠️ 🔔 **[ALERTA DE RESP AWN - {current_floor}]** Chefe do **{b_name}** surge em **15 minutos** (às `{t_display}`)!")
-                            except: pass
 
             elif map_type == "MAGIC_SQUARE":
-                # MODIFICAÇÃO DE ENGENHARIA: Líder 3 ativo para TODOS os andares da Praça Mágica (6F ao 12F)
                 l3_time, l3_rem, l3_mins = self._calculate_next_fixed_boss("MAGIC_SQUARE", current_floor, "LÍDER_3")
                 ticker_lines = [f"👑 **[LÍDER 3]** Respawn às `{l3_time}` (Falta **{l3_rem}**)"]
                 
-                if l3_mins == 15:
-                    ak = f"{current_floor}:LÍDER_3:{l3_time}"
-                    if ak not in self.last_alerts:
-                        self.last_alerts[ak] = True
-                        try: await channel.send(f"⚠️ 🔔 **[ALERTA DE RESP AWN - {current_floor}]** O **Líder 3** irá surgir em **15 minutos** (às `{l3_time}`)!")
-                        except: pass
-                
-                # Anexa Fúria e Frenzy dinamicamente se for andar endgame (11F ou 12F)
                 if current_floor in ["11F", "12F"]:
                     furia_time, furia_rem, furia_mins = self._calculate_next_fixed_boss("MAGIC_SQUARE", current_floor, "FÚRIA")
                     frenzy_time, frenzy_rem, frenzy_mins = self._calculate_next_fixed_boss("MAGIC_SQUARE", current_floor, "FRENZY")
                     ticker_lines.append(f"⚡ **[FÚRIA]** Próxima sala às `{furia_time}` (Falta **{furia_rem}**)")
                     ticker_lines.append(f"🔥 **[FRENZY]** Próxima sala às `{frenzy_time}` (Falta **{frenzy_rem}**)")
-                    
-                    for b_name, m_left, t_display in [("FÚRIA", furia_mins, furia_time), ("FRENZY", frenzy_mins, frenzy_time)]:
-                        if m_left == 15:
-                            ak = f"{current_floor}:{b_name}:{t_display}"
-                            if ak not in self.last_alerts:
-                                self.last_alerts[ak] = True
-                                try: await channel.send(f"⚠️ 🔔 **[ALERTA DE INSTÂNCIA - {current_floor}]** A sala de **{b_name}** irá abrir em **15 minutos** (às `{t_display}`)!")
-                                except: pass
                                 
                 embed.add_field(name="📊 LIVE STATUS TAPE | COMPUTAÇÃO DE TIMERS DA PRAÇA", value="\n".join(ticker_lines), inline=False)
 
@@ -167,6 +141,8 @@ class ClaimCog(commands.Cog):
                     continue
                     
                 evt_config = Config.TRACKABLE_EVENTS[map_type][evt_key]
+                time_display = f"**{(datetime.fromisoformat(row['last_triggered_at']) + timedelta(hours=Config.TIMEZONE_OFFSET)).strftime('%H('%M')}**" if row['last_triggered_at'] else "`--:--`"
+                # Fix replacement inside timestamp formatting
                 time_display = f"**{(datetime.fromisoformat(row['last_triggered_at']) + timedelta(hours=Config.TIMEZONE_OFFSET)).strftime('%H:%M')}**" if row['last_triggered_at'] else "`--:--`"
                 activity_lines.append(f"{evt_config['emoji']} **{evt_config['label']}:** {time_display}")
                 
