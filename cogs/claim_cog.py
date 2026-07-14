@@ -141,8 +141,6 @@ class ClaimCog(commands.Cog):
                     continue
                     
                 evt_config = Config.TRACKABLE_EVENTS[map_type][evt_key]
-                time_display = f"**{(datetime.fromisoformat(row['last_triggered_at']) + timedelta(hours=Config.TIMEZONE_OFFSET)).strftime('%H('%M')}**" if row['last_triggered_at'] else "`--:--`"
-                # Fix replacement inside timestamp formatting
                 time_display = f"**{(datetime.fromisoformat(row['last_triggered_at']) + timedelta(hours=Config.TIMEZONE_OFFSET)).strftime('%H:%M')}**" if row['last_triggered_at'] else "`--:--`"
                 activity_lines.append(f"{evt_config['emoji']} **{evt_config['label']}:** {time_display}")
                 
