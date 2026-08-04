@@ -1,54 +1,91 @@
 import discord
 from discord.ext import commands
-from config import Config
-from services.claim_service import DatabaseManager
-from ui.main_panel import MainControlPanel
-from ui.floor_events_view import FloorEventButtonsView
 from aiohttp import web
-import asyncio
+from config import config, logger
+from ui.main_panel import MainControlPanel
 
-class Mir4ClaimBot(commands.Bot):
+class HealthCheckServer:
+    def __init__(self, bot):
+        self.bot = bot
+        self.app = web.Application()
+        self.runner = None
+        self._setup_routes()
+
+    def _setup_routes(self):
+        self.app.router.add_get('/', self.handle_index)
+        self.app.router.add_get('/health', self.handle_health)
+
+    async def handle_index(self, request):
+        return web.Response(text="MARS Discord Bot Active.", status=200)
+
+    async def handle_health(self, request):
+        is_ready = self.bot.is_ready()
+        status_code = 200 if is_ready else 503
+        data = {
+            "status": "online" if is_ready else "starting",
+            "latency_ms": round(self.bot.latency * 1000, 2) if is_ready else -1,
+            "guilds": len(self.bot.guilds) if is_ready else 0
+        }
+        return web.json_response(data, status=status_code)
+
+    async def start(self):
+        self.runner = web.AppRunner(self.app)
+        await self.runner.setup()
+        site = web.TCPSite(self.runner, '0.0.0.0', config.PORT)
+        await site.start()
+        logger.info(f"Health Check HTTP Server running on port {config.PORT}.")
+
+    async def stop(self):
+        if self.runner:
+            await self.runner.cleanup()
+
+class MarsBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
+        intents.guilds = True
+        intents.messages = True
         intents.message_content = True
-        intents.members = True
-        super().__init__(command_prefix="!", intents=intents)
+
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+            application_id=config.CLIENT_ID if config.CLIENT_ID != 0 else None
+        )
+        self.health_server = HealthCheckServer(self)
 
     async def setup_hook(self):
-        await DatabaseManager.initialize()
-        await self.load_extension("cogs.claim_cog")
+        # Inicia o servidor HTTP para o Render/UptimeRobot
+        await self.health_server.start()
+
+        # RE-REGISTRO GLOBAL DE PERSISTÊNCIA: Garante que o botão funcione após reboots do Render
+        logger.info("Registrando View Persistente do Painel...")
+        self.add_view(MainControlPanel())
+
+        # Carrega as Cogs
+        logger.info("Carregando cogs...")
         await self.load_extension("cogs.admin_cog")
-        
-        self.add_view(MainControlPanel("MAGIC_SQUARE"))
-        self.add_view(MainControlPanel("SECRET_PEAK"))
-        
-        for map_key, map_info in Config.MAP_DATA.items():
-            for floor in map_info["floors"].keys():
-                self.add_view(FloorEventButtonsView(map_key, floor))
+        await self.load_extension("cogs.claim_cog")
+
+        synced = await self.tree.sync()
+        logger.info(f"Comandos Slash sincronizados: {len(synced)}")
+
+    async def close(self):
+        await self.health_server.stop()
+        await super().close()
 
     async def on_ready(self):
-        print(f"==========================================")
-        print(f"🤖 Arquiteto de Sistemas MIR4 Online Ativo: {self.user.name}")
-        print(f"🌍 Multi-Tenant Engine Operando em Fuso UTC-4")
-        print(f"==========================================")
+        logger.info(f"Bot Online como {self.user} (ID: {self.user.id})")
+        await self.change_presence(
+            activity=discord.Activity(type=discord.ActivityType.watching, name="MIR4 Portals | /setup_panel")
+        )
 
-# Retorna uma mensagem de texto simples quando a hospedagem testar a porta
-async def handle(request):
-    return web.Response(text="Bot MIR4 Online 24/7")
+def run():
+    if not config.DISCORD_TOKEN:
+        logger.critical("DISCORD_TOKEN ausente nas variáveis de ambiente.")
+        return
 
-async def main():
-    bot = Mir4ClaimBot()
-    
-    # Inicializa o mini-servidor HTTP de forma assíncrona na porta da nuvem
-    app = web.Application()
-    app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', Config.PORT)
-    
-    # Dispara o servidor web em background e inicia o bot do Discord
-    asyncio.create_task(site.start())
-    await bot.start(Config.TOKEN)
+    bot = MarsBot()
+    bot.run(config.DISCORD_TOKEN)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run()
