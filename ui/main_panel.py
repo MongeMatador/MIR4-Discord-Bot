@@ -1,73 +1,72 @@
 import discord
-import aiosqlite
-from discord.ui import View, Button
-from ui.claim_wizard import ClaimWizardView
-from services.claim_service import ClaimService, DatabaseManager
-from config import Config
+from typing import Optional
+from services.claim_service import claim_service
+from ui.claim_wizard import ZoneSelectView
+from config import logger
 
-class MainControlPanel(View):
-    def __init__(self, map_type: str):
+class MainControlPanel(discord.ui.View):
+    def __init__(self, message: Optional[discord.Message] = None):
+        # timeout=None é obrigatório para ser persistente
         super().__init__(timeout=None)
-        self.map_type = map_type
+        self.message = message
+        claim_service.register_panel(self)
 
-    @discord.ui.button(label="Claim", style=discord.ButtonStyle.success, custom_id="persistent_claim_btn")
-    async def claim_button(self, interaction: discord.Interaction, button: Button):
-        # Validação isolada de concorrência por contexto de mapa ativo
-        has_claim, in_queue = await ClaimService.check_user_status(interaction.user.id, self.map_type)
+    async def refresh_panel(self):
+        if self.message:
+            try:
+                embed = self.generate_status_embed()
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                logger.error(f"Erro ao atualizar mensagem do painel: {e}")
+
+    def generate_status_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="🚀 PAINEL OPERACIONAL | PRAÇA MÁGICA & PICO",
+            description=(
+                "🇺🇸 **How to claim spot?**\n• Click on `Claim` and select floor/tickets.\n\n"
+                "🇧🇷 **Como claimar um spot?**\n• Clique em `Claim` e selecione o andar/tickets.\n\n"
+                "🇪🇸 **¿Cómo seleccionar una locación?**\n• Oprima en `Claim` y seleccione tiempo."
+            ),
+            color=discord.Color.from_rgb(46, 204, 113)
+        )
+        claims = claim_service.get_all_claims()
         
-        if has_claim:
-            return await interaction.response.send_message(
-                f"❌ Você já possui uma conta alocada em **{Config.MAP_DATA[self.map_type]['label']}**. Finalize-a antes de redefinir.", 
+        sq_claims = [v for k, v in claims.items() if k.startswith("Square")]
+        pk_claims = [v for k, v in claims.items() if k.startswith("Peak")]
+
+        sq_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']}\n" for c in sq_claims])
+        pk_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']}\n" for c in pk_claims])
+
+        embed.add_field(name="🔮 Magic Square Active Claims", value=sq_text if sq_text else "*Nenhum spot ocupado*", inline=False)
+        embed.add_field(name="🏔️ Secret Peak Active Claims", value=pk_text if pk_text else "*Nenhum spot ocupado*", inline=False)
+        embed.set_footer(text="MIR4 MARS Engine • Persistent Sync Active")
+        return embed
+
+    # custom_id estático para responder ao clique mesmo após reinicialização
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.success, custom_id="mars_btn_persistent_claim", emoji="📝")
+    async def btn_claim(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            await interaction.response.send_message(
+                content="Select Zone / Selecione a Zona:",
+                view=ZoneSelectView(),
                 ephemeral=True
             )
-            
-        if in_queue:
-            return await interaction.response.send_message(
-                f"❌ Você já se encontra posicionado em uma lista de espera ativa dentro de **{Config.MAP_DATA[self.map_type]['label']}**.", 
-                ephemeral=True
-            )
-            
-        # O MAPA É INVOCADO EXCLUSIVAMENTE NA VIEW PRIVADA EFÊMERA (ANTI-POLUIÇÃO)
-        if self.map_type == "SECRET_PEAK":
-            embed = discord.Embed(
-                title="🏔️ Pico Secreto | Central de Alocações",
-                description="Selecione abaixo o andar de destino. Utilize o mapa de suporte anexado abaixo para se localizar geograficamente:",
-                color=0xe67e22
-            )
-            embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
-        else:
-            embed = discord.Embed(
-                title="🔮 Praça Mágica | Central de Alocações",
-                description="Selecione abaixo o andar alvo para prosseguir com a reserva automatizada de sub-salas:",
-                color=0x9b59b6
-            )
-            
-        wizard = ClaimWizardView(interaction.user, self.map_type)
-        await interaction.response.send_message(embed=embed, view=wizard, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Erro no botão de claim: {e}")
 
-    @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.danger, custom_id="persistent_cancel_btn")
-    async def cancel_button(self, interaction: discord.Interaction, button: Button):
-        success, map_type, floor, spot_type, room_number, was_vacated = await ClaimService.cancel_active_claim(interaction.user.id, self.map_type)
-        
-        if success:
-            await interaction.response.send_message("✅ Sua alocação ativa neste mapa foi cancelada e limpa!", ephemeral=True)
-            await ClaimService.dispatch_admin_log(interaction.client, "CANCEL", interaction.user, map_type, floor, spot_type, room_number)
-            claim_cog = interaction.client.get_cog("ClaimCog")
-            if claim_cog:
-                await claim_cog.update_floor_dashboard(map_type, floor)
-            return
-
-        async with DatabaseManager.get_connection() as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT * FROM spot_queues WHERE user_id = ? AND map_type = ?", (interaction.user.id, self.map_type)) as cursor:
-                queue_data = await cursor.fetchone()
-                
-        if queue_data:
-            await ClaimService.remove_from_queue(queue_data['id'])
-            await interaction.response.send_message("✅ Você removeu seu ID da fila de espera de forma voluntária.", ephemeral=True)
-            await ClaimService.dispatch_admin_log(interaction.client, "CANCEL", interaction.user, queue_data['map_type'], queue_data['floor'], queue_data['spot_type'], 0)
-            claim_cog = interaction.client.get_cog("ClaimCog")
-            if claim_cog:
-                await claim_cog.update_floor_dashboard(queue_data['map_type'], queue_data['floor'])
-        else:
-            await interaction.response.send_message("❌ Você não possui registros de claims ativos ou filas neste mapa específico.", ephemeral=True)
+    @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.danger, custom_id="mars_btn_persistent_cancel", emoji="✖️")
+    async def btn_cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            released_count = await claim_service.release_user_claims(interaction.user.id)
+            if released_count > 0:
+                await interaction.response.send_message(
+                    content=f"✅ {released_count} claim(s) cancelado(s) com sucesso!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    content="❌ Você não possui nenhum spot claimado ativo.",
+                    ephemeral=True
+                )
+        except Exception as e:
+            logger.error(f"Erro no botão de cancelar: {e}")
