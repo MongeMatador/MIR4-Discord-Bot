@@ -1,6 +1,7 @@
 import discord
 from typing import Optional
 from services.claim_service import claim_service
+from ui.claim_wizard import ZoneSelectView
 from config import logger
 
 class MainControlPanel(discord.ui.View):
@@ -15,38 +16,56 @@ class MainControlPanel(discord.ui.View):
                 embed = self.generate_status_embed()
                 await self.message.edit(embed=embed, view=self)
             except Exception as e:
-                logger.error(f"Failed to edit panel message: {e}")
+                logger.error(f"Erro ao editar mensagem do painel principal: {e}")
 
     def generate_status_embed(self) -> discord.Embed:
         embed = discord.Embed(
-            title="🛸 MIR4 MARS - Control Panel (Square & Peak Claims)",
-            description="Real-time synchronized portal monitoring system.\nUse the buttons below to manage your claims.",
-            color=discord.Color.gold()
+            title="🚀 PAINEL OPERACIONAL | PRAÇA MÁGICA & PICO",
+            description=(
+                "🇺🇸 **How to claim spot?**\n• Click on `Claim` and select floor/tickets.\n\n"
+                "🇧🇷 **Como claimar um spot?**\n• Clique em `Claim` e selecione o andar/tickets.\n\n"
+                "🇪🇸 **¿Cómo seleccionar una locación?**\n• Oprima en `Claim` y seleccione tiempo."
+            ),
+            color=discord.Color.from_rgb(46, 204, 113)
         )
         claims = claim_service.get_all_claims()
         
         sq_claims = [v for k, v in claims.items() if k.startswith("Square")]
         pk_claims = [v for k, v in claims.items() if k.startswith("Peak")]
 
-        sq_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']}" + (" 🎟️ [EXTRA]" if c.get("extra_ticket") else "") + (" ⚡ [EARLY]" if c.get("early_mode") else "") + "\n" for c in sq_claims])
-        pk_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']}" + (" 🎟️ [EXTRA]" if c.get("extra_ticket") else "") + (" ⚡ [EARLY]" if c.get("early_mode") else "") + "\n" for c in pk_claims])
+        sq_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']} ({c['tickets']} tkt)\n" for c in sq_claims])
+        pk_text = "".join([f"• **{c['floor']}** - `{c['room']}`: {c['user_name']} ({c['tickets']} tkt)\n" for c in pk_claims])
 
-        embed.add_field(name="🔮 Magic Square Claims", value=sq_text if sq_text else "*No active claims*", inline=False)
-        embed.add_field(name="🏔️ Secret Peak Claims", value=pk_text if pk_text else "*No active claims*", inline=False)
-        embed.set_footer(text="Synchronized Active Instance • Render Engine")
+        embed.add_field(name="🔮 Magic Square Active Claims", value=sq_text if sq_text else "*Nenhum spot ocupado*", inline=False)
+        embed.add_field(name="🏔️ Secret Peak Active Claims", value=pk_text if pk_text else "*Nenhum spot ocupado*", inline=False)
+        embed.set_footer(text="MIR4 MARS Engine • Persistent Synchronization Active")
         return embed
 
-    @discord.ui.button(label="Claim Room", style=discord.ButtonStyle.primary, custom_id="mars_btn_claim", emoji="📝")
+    # custom_id estático atrelado à Persistent View
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.success, custom_id="mars_btn_persistent_claim", emoji="📝")
     async def btn_claim(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from ui.claim_wizard import ZoneSelectView
-        await interaction.response.send_message("Select the zone you wish to claim:", view=ZoneSelectView(), ephemeral=True)
+        try:
+            await interaction.response.send_message(
+                content="Selecione a Zona desejada:",
+                view=ZoneSelectView(),
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Erro no botão de claim: {e}")
 
-    @discord.ui.button(label="Extra Ticket / Early Mode", style=discord.ButtonStyle.secondary, custom_id="mars_btn_frenzy", emoji="🎟️")
-    async def btn_frenzy(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from ui.claim_wizard import FrenzyTicketView
-        await interaction.response.send_message("⚡ **Frenzy/Fury Ticket System**\nSelect your claim mode:", view=FrenzyTicketView(), ephemeral=True)
-
-    @discord.ui.button(label="Refresh Panels", style=discord.ButtonStyle.success, custom_id="mars_btn_refresh", emoji="🔄")
-    async def btn_refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await claim_service.sync_all_panels()
-        await interaction.response.send_message("All active panels synchronized successfully.", ephemeral=True)
+    @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.danger, custom_id="mars_btn_persistent_cancel", emoji="✖️")
+    async def btn_cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            released_count = await claim_service.release_user_claims(interaction.user.id)
+            if released_count > 0:
+                await interaction.response.send_message(
+                    content=f"✅ {released_count} claim(s) cancelado(s) com sucesso!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    content="❌ Você não possui nenhum spot claimado ativo.",
+                    ephemeral=True
+                )
+        except Exception as e:
+            logger.error(f"Erro no botão de cancelar: {e}")
