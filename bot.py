@@ -1,7 +1,9 @@
 import discord
 from discord.ext import commands
 from aiohttp import web
-from config import config, logger
+from config import Config, logger
+from services.claim_service import claim_service
+from ui.main_panel import MainControlPanel
 
 class HealthCheckServer:
     def __init__(self, bot):
@@ -30,9 +32,9 @@ class HealthCheckServer:
     async def start(self):
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        site = web.TCPSite(self.runner, '0.0.0.0', config.PORT)
+        site = web.TCPSite(self.runner, '0.0.0.0', Config.PORT)
         await site.start()
-        logger.info(f"Health Check HTTP Server running on port {config.PORT} for Render/UptimeRobot.")
+        logger.info(f"Health Check HTTP Server rodando na porta {Config.PORT} para Render e UptimeRobot.")
 
     async def stop(self):
         if self.runner:
@@ -48,37 +50,44 @@ class MarsBot(commands.Bot):
         super().__init__(
             command_prefix="!",
             intents=intents,
-            application_id=config.CLIENT_ID if config.CLIENT_ID != 0 else None
+            application_id=Config.CLIENT_ID if Config.CLIENT_ID != 0 else None
         )
         self.health_server = HealthCheckServer(self)
 
     async def setup_hook(self):
+        # 1. Inicia o Servidor HTTP para Render e UptimeRobot
         await self.health_server.start()
 
-        logger.info("Loading cogs...")
+        # 2. REGISTRA A VIEW PERSISTENTE NO BOOT (CORRIGE O BOTÃO TRAVADO NO '...')
+        logger.info("Registrando ouvinte da View Persistente (MainControlPanel)...")
+        self.add_view(MainControlPanel())
+
+        # 3. Carrega as Cogs do repositório
+        logger.info("Carregando cogs...")
         await self.load_extension("cogs.admin_cog")
         await self.load_extension("cogs.claim_cog")
 
+        # 4. Sincroniza Comandos Slash
         synced = await self.tree.sync()
-        logger.info(f"Successfully synced {len(synced)} slash commands.")
+        logger.info(f"Sucesso: {len(synced)} comandos Slash sincronizados.")
 
     async def close(self):
         await self.health_server.stop()
         await super().close()
 
     async def on_ready(self):
-        logger.info(f"MARS Bot Logged In as {self.user} (ID: {self.user.id})")
+        logger.info(f"Bot Autenticado com Sucesso: {self.user} (ID: {self.user.id})")
         await self.change_presence(
             activity=discord.Activity(type=discord.ActivityType.watching, name="MIR4 Portals | /setup_panel")
         )
 
 def run():
-    if not config.DISCORD_TOKEN:
-        logger.critical("DISCORD_TOKEN environment variable is missing!")
+    if not Config.DISCORD_TOKEN:
+        logger.critical("DISCORD_TOKEN ausente nas variáveis de ambiente!")
         return
 
     bot = MarsBot()
-    bot.run(config.DISCORD_TOKEN)
+    bot.run(Config.DISCORD_TOKEN)
 
 if __name__ == "__main__":
     run()
