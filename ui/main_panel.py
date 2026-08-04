@@ -2,11 +2,10 @@ import discord
 from typing import Optional
 from services.claim_service import claim_service
 from ui.claim_wizard import ZoneSelectView
-from config import logger
 
 class MainControlPanel(discord.ui.View):
     def __init__(self, message: Optional[discord.Message] = None):
-        # timeout=None é obrigatório para ser persistente
+        # timeout=None para manter a View ativa permanentemente
         super().__init__(timeout=None)
         self.message = message
         claim_service.register_panel(self)
@@ -17,7 +16,7 @@ class MainControlPanel(discord.ui.View):
                 embed = self.generate_status_embed()
                 await self.message.edit(embed=embed, view=self)
             except Exception as e:
-                logger.error(f"Erro ao atualizar mensagem do painel: {e}")
+                pass
 
     def generate_status_embed(self) -> discord.Embed:
         embed = discord.Embed(
@@ -39,34 +38,21 @@ class MainControlPanel(discord.ui.View):
 
         embed.add_field(name="🔮 Magic Square Active Claims", value=sq_text if sq_text else "*Nenhum spot ocupado*", inline=False)
         embed.add_field(name="🏔️ Secret Peak Active Claims", value=pk_text if pk_text else "*Nenhum spot ocupado*", inline=False)
-        embed.set_footer(text="MIR4 MARS Engine • Persistent Sync Active")
+        embed.set_footer(text="MIR4 Portal System • Instance Active")
         return embed
 
-    # custom_id estático para responder ao clique mesmo após reinicialização
     @discord.ui.button(label="Claim", style=discord.ButtonStyle.success, custom_id="mars_btn_persistent_claim", emoji="📝")
     async def btn_claim(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            await interaction.response.send_message(
-                content="Select Zone / Selecione a Zona:",
-                view=ZoneSelectView(),
-                ephemeral=True
-            )
-        except Exception as e:
-            logger.error(f"Erro no botão de claim: {e}")
+        await interaction.response.send_message(
+            content="Selecione a Zona desejada:",
+            view=ZoneSelectView(),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.danger, custom_id="mars_btn_persistent_cancel", emoji="✖️")
     async def btn_cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            released_count = await claim_service.release_user_claims(interaction.user.id)
-            if released_count > 0:
-                await interaction.response.send_message(
-                    content=f"✅ {released_count} claim(s) cancelado(s) com sucesso!",
-                    ephemeral=True
-                )
-            else:
-                await interaction.response.send_message(
-                    content="❌ Você não possui nenhum spot claimado ativo.",
-                    ephemeral=True
-                )
-        except Exception as e:
-            logger.error(f"Erro no botão de cancelar: {e}")
+        released = await claim_service.release_user_claims(interaction.user.id)
+        if released > 0:
+            await interaction.response.send_message("✅ Claim cancelado com sucesso!", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Você não possui nenhum spot ativo.", ephemeral=True)
