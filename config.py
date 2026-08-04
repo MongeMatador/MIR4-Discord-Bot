@@ -1,190 +1,89 @@
 import os
-from dotenv import load_dotenv
+import sys
+import logging
+from typing import Dict, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
+class Settings(BaseSettings):
+    DISCORD_TOKEN: str = ""
+    CLIENT_ID: int = 0
+    GUILD_ID: int = 0
+    PORT: int = 10000
+    LOG_LEVEL: str = "INFO"
+    DB_PATH: str = "mars_bot.db"
 
-class Config:
-    TOKEN = os.getenv("DISCORD_TOKEN")
-    DB_PATH = "database.db"
-    
-    # Fuso horário do Servidor do Jogo (BRT - 1 hora = UTC-4)
-    TIMEZONE_OFFSET = int(os.getenv("SERVER_TIMEZONE", "-4"))
-    PORT = int(os.getenv("PORT", "8080"))
-    
-    MAX_QUEUE_SIZE = 3
-    
-    # URL oficial fornecida para o mapa do Pico Secreto
-    SECRET_PEAK_MAP_URL = "https://cdn.discordapp.com/attachments/1525963683019362306/1525963733728497866/Gemini_Generated_Image_nuxpe7nuxpe7nuxp.png?ex=6a554bf9&is=6a53fa79&hm=2f58fe170fe5607c4be8ad0b764cf20929807014325df8a093db6e421cc51a9b&"
-    
-    # CRONÔMETROS DE EVENTOS: Configuração global de nomes e emojis
-    TRACKABLE_EVENTS = {
-        "MAGIC_SQUARE": {
-            "L1": {"label": "L1", "emoji": "⚔️"},
-            "L2": {"label": "L2", "emoji": "⚔️"},
-            "SELAR": {"label": "Selar", "emoji": "🗡️"},
-            "PLANTA": {"label": "Planta", "emoji": "🌿"},
-            "MINERIO": {"label": "Minério", "emoji": "⛏️"}
-        },
-        "SECRET_PEAK": {
-            "BOSS_ESQ": {"label": "Yellow Boss Left", "emoji": "⬅️"},
-            "BOSS_DIR": {"label": "Yellow Boss Right", "emoji": "➡️"},
-            "MINERIO_ELITE": {"label": "Minério Dourado", "emoji": "⛏️"},
-            "SUMMON_EVENT": {"label": "Summon Events", "emoji": "🌀"},
-            "SUMMON_GOBLIN": {"label": "Summon Goblin", "emoji": "👺"}
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+config = Settings()
+
+def setup_logger() -> logging.Logger:
+    log_inst = logging.getLogger("MARS_BOT")
+    if log_inst.hasHandlers():
+        return log_inst
+
+    log_inst.setLevel(getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
+    formatter = logging.Formatter(
+        '[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    log_inst.addHandler(console_handler)
+
+    return log_inst
+
+logger = setup_logger()
+
+def build_antidemon_chambers(count: int) -> Dict[str, Any]:
+    chambers = {}
+    for ad_num in range(1, count + 1):
+        ad_key = f"ANTIDEMON {ad_num}"
+        chambers[ad_key] = {
+            "rooms": ["Sala 1", "Sala 2", "Sala 3"]
+        }
+    return chambers
+
+MAP_DATA: Dict[str, Any] = {
+    "MAGIC_SQUARE": {
+        "name": "Magic Square",
+        "emoji": "🔮",
+        "floors": {
+            f"{i}F": {
+                "standard_rooms": [
+                    "Boss Room 1", "Boss Room 2",
+                    "Chamber of Experience 1", "Chamber of Experience 2",
+                    "Training Chamber 1", "Training Chamber 2",
+                    "Gold Chamber", "Gathering Chamber"
+                ],
+                "antidemons": {}
+            } for i in range(1, 13)
+        }
+    },
+    "SECRET_PEAK": {
+        "name": "Secret Peak",
+        "emoji": "🏔️",
+        "floors": {
+            f"{i}F": {
+                "standard_rooms": [
+                    "Boss Room 1", "Boss Room 2",
+                    "Chamber of Experience 1", "Chamber of Experience 2",
+                    "Training Chamber 1", "Training Chamber 2",
+                    "Gold Chamber", "Gathering Chamber"
+                ]
+            } for i in range(1, 13)
         }
     }
-    
-    # MATRIZ HORÁRIA: Contagens regressivas automáticas e alertas de 15 minutos
-    FIXED_BOSS_HOURS = {
-        "SECRET_PEAK": {
-            "DEFAULT": {
-                "SUL": ["01:00", "07:00", "13:00", "19:00"],
-                "NORTE": ["04:00", "10:00", "16:00", "22:00"]
-            },
-            "11F": {
-                "NORTE": ["01:00", "13:00"],
-                "SUL": ["07:00", "19:00"]
-            },
-            "12F": {
-                "NORTE": ["01:00", "13:00"],
-                "SUL": ["07:00", "19:00"]
-            }
-        },
-        "MAGIC_SQUARE": {
-            "DEFAULT": {
-                "LÍDER_3": ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"]
-            },
-            "11F": {
-                "LÍDER_3": ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"],
-                "FÚRIA": ["00:30", "03:30", "06:30", "09:30", "12:30", "15:30", "18:30", "21:30"],
-                "FRENZY": ["02:00", "05:00", "08:00", "11:00", "14:00", "17:00", "20:00", "23:00"]
-            },
-            "12F": {
-                "LÍDER_3": ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"],
-                "FÚRIA": ["00:30", "03:30", "06:30", "09:30", "12:30", "15:30", "18:30", "21:30"],
-                "FRENZY": ["02:00", "05:00", "08:00", "11:00", "14:00", "17:00", "20:00", "23:00"]
-            }
-        }
-    }
-    
-    MAP_DATA = {
-        "MAGIC_SQUARE": {
-            "label": "🔮 Praça Mágica",
-            "floors": {
-                "6F": {
-                    "ANTIDEMON": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"}
-                },
-                "7F": {
-                    "ANTIDEMON": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"}
-                },
-                "8F": {
-                    "ANTIDEMON": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"}
-                },
-                "9F": {
-                    "ANTIDEMON 1": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "ANTIDEMON 2": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"}
-                },
-                "10F": {
-                    "ANTIDEMON 1": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "ANTIDEMON 2": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"}
-                },
-                "11F": {
-                    "ANTIDEMON": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"},
-                    "FRENZY": {"rooms": 1, "tickets": [1, 2], "allow_queue": False, "emoji": "🔥"},
-                    "FURY": {"rooms": 1, "tickets": [1, 2], "allow_queue": False, "emoji": "⚡"},
-                    "SUMMON GOBLIN": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "👺"}
-                },
-                "12F": {
-                    "ANTIDEMON": {"rooms": 3, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🚪"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "👑"},
-                    "FRENZY": {"rooms": 1, "tickets": [1, 2], "allow_queue": False, "emoji": "🔥"},
-                    "FURY": {"rooms": 1, "tickets": [1, 2], "allow_queue": False, "emoji": "⚡"},
-                    "SUMMON GOBLIN": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "👺"}
-                }
-            }
-        },
-        "SECRET_PEAK": {
-            "label": "🏔️ Pico Secreto",
-            "floors": {
-                "6F": {
-                    "A1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "A2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "SUMMON": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "7F": {
-                    "A1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "A2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "SUMMON": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "8F": {
-                    "A1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "A2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "SUMMON": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "9F": {
-                    "A1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "A2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "SUMMON": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "10F": {
-                    "A1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "A2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "N2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S1": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "S2": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🗺️"},
-                    "SUMMON": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "11F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "👺"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                },
-                "12F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "👺"},
-                    "SUMMON EVENTS": {"rooms": 1, "tickets": [1, 3, 6], "allow_queue": True, "emoji": "🌀"},
-                    "BOSS": {"rooms": 1, "tickets": [1, 2, 3], "allow_queue": True, "emoji": "🐲"}
-                }
-            }
-        }
-    }
-    FLOOR_LAYOUT = MAP_DATA["MAGIC_SQUARE"]["floors"]
+}
 
-    @staticmethod
-    def get_valid_events_for_floor(map_type: str, floor: str) -> list:
-        if map_type == "MAGIC_SQUARE":
-            if floor in ["11F", "12F"]:
-                return ["L1", "L2"]
-            return ["L1", "L2", "SELAR", "PLANTA", "MINERIO"]
-        elif map_type == "SECRET_PEAK":
-            if floor in ["11F", "12F"]:
-                # CORRIGIDO: Ativa o monitoramento tático de Yellow Boss Left e Yellow Boss Right no 11F/12F do Pico
-                return ["BOSS_ESQ", "BOSS_DIR"]
-            return ["BOSS_ESQ", "BOSS_DIR", "MINERIO_ELITE"]
-        return []
+# Estrutura exata de Antidemônios (7F a 12F)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["7F"]["antidemons"] = build_antidemon_chambers(1)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["8F"]["antidemons"] = build_antidemon_chambers(1)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["9F"]["antidemons"] = build_antidemon_chambers(2)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["10F"]["antidemons"] = build_antidemon_chambers(2)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["11F"]["antidemons"] = build_antidemon_chambers(3)
+MAP_DATA["MAGIC_SQUARE"]["floors"]["12F"]["antidemons"] = build_antidemon_chambers(3)
