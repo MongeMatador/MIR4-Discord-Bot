@@ -13,18 +13,20 @@ class LogsCog(commands.Cog):
     )
     @commands.has_permissions(administrator=True)
     async def set_log_channel(self, interaction: discord.Interaction, categoria: str, canal: discord.TextChannel):
+        # DEFER IMEDIATO PARA RESPOSTA SEGURA
         await interaction.response.defer(ephemeral=True)
+
         success = await self.bot.log_repo.set_log_channel(interaction.guild_id, categoria, canal.id)
 
         if success:
             embed = discord.Embed(
                 title="✅ Canal de Logs Configurado",
-                description=f"Os logs de **{categoria.upper()}** serão enviados em {canal.mention}.",
+                description=f"Os logs da categoria **{categoria.upper()}** serão entregues em {canal.mention}.",
                 color=discord.Color.brand_green()
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.followup.send("❌ Erro ao salvar no banco de dados.", ephemeral=True)
+            await interaction.followup.send("❌ Erro ao salvar no banco de dados. Tente novamente.", ephemeral=True)
 
     @set_log_channel.autocomplete('categoria')
     async def category_autocomplete(self, interaction: discord.Interaction, current: str):
