@@ -3,12 +3,15 @@ from typing import List, Dict
 from datetime import datetime
 
 class MIR4Embeds:
+    """Construtor dos Embeds do Bot."""
+
     @staticmethod
     def build_panel_embed(claims: List[Dict]) -> discord.Embed:
         embed = discord.Embed(
-            title="⚔️ PAINEL DE CONTROLE DE SPOTS - MIR4 ⚔️",
-            description="Utilize os botões abaixo para **Reivindicar (Claim)** ou **Liberar** seu spot na Praça / Pico Secreto.\n\n"
-                        "*(Painel sincronizado em tempo real)*",
+            title="⚔️ PAINEL OPERACIONAL | PRAÇA MÁGICA ⚔️",
+            description="🇺🇸 **How to claim spot?**\n• Click on `Claim`;\n• Select floor and tickets.\n\n"
+                        "🇧🇷 **Como claimar um spot?**\n• Clique em `Claim`;\n• Selecione o andar e os tickets.\n\n"
+                        "🇪🇸 **Como seleccionar una ubicacion?**\n• Oprima en `Claim`;\n• Seleccione campos de tiempo.",
             color=discord.Color.gold(),
             timestamp=datetime.utcnow()
         )
