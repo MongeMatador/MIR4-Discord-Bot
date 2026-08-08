@@ -31,11 +31,11 @@ class MIR4PanelPersistentView(discord.ui.View):
         super().__init__(timeout=None)
         self.bot = bot
 
-    @discord.ui.button(label="Reivindicar Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim")
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim")
     async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(SpotSelectModal(self.bot))
 
-    @discord.ui.button(label="Liberar Meu Spot", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim")
+    @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim")
     async def unclaim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
@@ -50,9 +50,3 @@ class MIR4PanelPersistentView(discord.ui.View):
             await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
 
         await interaction.followup.send("✅ Seu spot foi liberado!", ephemeral=True)
-
-    @discord.ui.button(label="Atualizar", style=discord.ButtonStyle.secondary, custom_id="mir4:btn_refresh")
-    async def refresh_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)
-        await self.bot.panel_service.update_panel(interaction.guild_id)
-        await interaction.followup.send("🔄 Painel sincronizado!", ephemeral=True)
