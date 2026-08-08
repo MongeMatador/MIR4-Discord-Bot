@@ -1,4 +1,3 @@
-# Alias para garantir compatibilidade se o Render iniciar por main.py
 from bot import main
 import asyncio
 
