@@ -1,22 +1,21 @@
 import discord
 from database.repositories.log_repository import LogRepository
-from utils.logger import logger
+from config import logger
 from datetime import datetime
 
 class LogService:
-    """Serviço de envio e auditoria de logs para o Discord."""
+    """Serviço para despachar embeds de auditoria para o canal de logs."""
 
     def __init__(self, bot, log_repo: LogRepository):
         self.bot = bot
         self.log_repo = log_repo
 
     async def dispatch_claim_log(self, guild_id: int, user: discord.User, spot_name: str, action: str):
-        # Tenta buscar canal específico da categoria ou o genérico 'CLAIMS'
         channel_id = await self.log_repo.get_log_channel_id(guild_id, "MAGIC_SQUARE") \
                      or await self.log_repo.get_log_channel_id(guild_id, "CLAIMS")
 
         if not channel_id:
-            logger.warning(f"[LOG SERVICE] Nenhum canal de log configurado para a Guild {guild_id}.")
+            logger.warning(f"[LOG SERVICE] Nenhum canal de log configurado na Guild {guild_id}.")
             return
 
         channel = self.bot.get_channel(channel_id)
@@ -24,7 +23,7 @@ class LogService:
             try:
                 channel = await self.bot.fetch_channel(channel_id)
             except Exception as e:
-                logger.error(f"[LOG SERVICE] Falha ao recuperar canal ID {channel_id}: {e}")
+                logger.error(f"[LOG SERVICE] Canal ID {channel_id} inacessível: {e}")
                 return
 
         if action == "CLAIM":
@@ -43,6 +42,6 @@ class LogService:
 
         try:
             await channel.send(embed=embed)
-            logger.info(f"[LOG SERVICE] Log de {action} disparado com sucesso no canal {channel_id}.")
+            logger.info(f"[LOG SERVICE] Log de {action} enviado para o canal {channel_id}.")
         except Exception as e:
-            logger.error(f"[LOG SERVICE] Erro ao enviar log no Discord: {e}")
+            logger.error(f"[LOG SERVICE] Erro de envio no Discord: {e}")
