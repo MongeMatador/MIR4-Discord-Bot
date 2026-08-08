@@ -1,11 +1,17 @@
 version: '3.8'
+
 services:
-  mir4_engine:
+  mir4_discord_bot:
     build: .
-    container_name: mir4_unified_bot
+    container_name: mir4_bot_container
     restart: always
+    ports:
+      - "8080:8080"
     environment:
-      - SERVER_TIMEZONE=-4
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DATABASE_PATH=database/mir4_bot.db
       - PORT=8080
+      - LOG_LEVEL=INFO
     volumes:
-      - ./database.db:/app/database.db
+      - ./database:/app/database
+      - ./logs:/app/logs
