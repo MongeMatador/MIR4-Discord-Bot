@@ -4,6 +4,8 @@ from services.panel_service import PanelService
 from services.log_service import LogService
 
 class ClaimService:
+    """Serviço de orquestração de ocupações."""
+
     def __init__(self, claim_repo: ClaimRepository, panel_service: PanelService, log_service: LogService):
         self.claim_repo = claim_repo
         self.panel_service = panel_service
