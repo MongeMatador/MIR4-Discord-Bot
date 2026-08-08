@@ -22,7 +22,7 @@ class Config:
     MAX_QUEUE_SIZE = 3
     TIMEZONE_OFFSET = int(os.getenv("SERVER_TIMEZONE", "-4"))
 
-    # Fixed Boss Timers (UTC-4) in English
+    # Fixed Boss Timers (UTC-4)
     FIXED_BOSS_HOURS = {
         "MAGIC_SQUARE": {
             "DEFAULT": {
@@ -55,7 +55,7 @@ class Config:
         }
     }
 
-    # Rotation trackable events in English
+    # Rotation trackable events
     TRACKABLE_EVENTS = {
         "MAGIC_SQUARE": {
             "L1": {"label": "L1", "emoji": "⚔️"},
@@ -79,7 +79,7 @@ class Config:
             return []
         return list(cls.TRACKABLE_EVENTS.get(map_type, {}).keys())
 
-    # MAGIC SQUARE: Lower floors setup (6F to 10F)
+    # MAGIC SQUARE: 3 Antidemon Chambers (ADC1, ADC2, ADC3) with 3 rooms each
     MS_ADC_SPOTS = {
         "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
         "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
@@ -87,7 +87,7 @@ class Config:
         "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
     }
 
-    # MAGIC SQUARE: High floors setup (11F and 12F) with 3 ADCs and 3-Ticket Fury/Frenzy
+    # MAGIC SQUARE: High floors (11F and 12F) with 3 ADCs and 3-Ticket Fury/Frenzy
     MS_HIGH_SPOTS = {
         "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
         "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
@@ -98,7 +98,7 @@ class Config:
         "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))}
     }
 
-    # SECRET PEAK: Default Spots setup (6F to 10F) [cite: 5, 6, 7]
+    # SECRET PEAK: Default Spots setup (6F to 10F)
     PS_DEFAULT_SPOTS = {
         "A1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
         "A2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
