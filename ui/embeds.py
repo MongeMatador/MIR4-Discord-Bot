@@ -3,34 +3,61 @@ from typing import List, Dict
 from datetime import datetime
 
 class MIR4Embeds:
-    """Construtor dos Embeds do Bot."""
+    """Industrial-grade dynamic Embed constructor for MIR4 Discord Bot."""
 
     @staticmethod
     def build_panel_embed(claims: List[Dict]) -> discord.Embed:
         embed = discord.Embed(
-            title="⚔️ PAINEL OPERACIONAL | PRAÇA MÁGICA ⚔️",
-            description="🇺🇸 **How to claim spot?**\n• Click on `Claim`;\n• Select floor and tickets.\n\n"
-                        "🇧🇷 **Como claimar um spot?**\n• Clique em `Claim`;\n• Selecione o andar e os tickets.\n\n"
-                        "🇪🇸 **Como seleccionar una ubicacion?**\n• Oprima en `Claim`;\n• Seleccione campos de tiempo.",
+            title="⚔️ CLAN OPERATIONAL DASHBOARD | PAINEL DE CLAIMS ⚔️",
+            description="🇺🇸 **How to claim?** Click **Claim Spot** below, select floor, spot, room, and tickets.\n"
+                        "🇧🇷 **Como claimar?** Clique em **Claim Spot** abaixo, selecione o andar, spot, sala e tickets.\n"
+                        "🇪🇸 **¿Cómo solicitar?** Oprima **Claim Spot**, seleccione piso, spot, sala y tiempo.",
             color=discord.Color.gold(),
             timestamp=datetime.utcnow()
         )
 
-        available_spots = [
-            "Praça 1 - Ouro", "Praça 2 - Pedra de Alma", "Praça 3 - Ervas",
-            "Pico 1 - Minério", "Pico 2 - Boss", "Pico 3 - Essência"
-        ]
+        # Categorizes claims dynamically
+        ms_claims = []
+        sp_claims = []
 
-        claims_map = {c["spot_name"]: c for c in claims}
-
-        for spot in available_spots:
-            if spot in claims_map:
-                c = claims_map[spot]
-                status = f"🔴 **Ocupado por:** <@{c['user_id']}>\n⏱️ Em: `{c['claimed_at']}`"
+        for c in claims:
+            spot_name = c.get("spot_name", "")
+            # Supports both English and Portuguese/Spanish naming patterns
+            if "Magic Square" in spot_name or "Praça" in spot_name:
+                ms_claims.append(c)
+            elif "Secret Peak" in spot_name or "Pico" in spot_name:
+                sp_claims.append(c)
             else:
-                status = "🟢 **LIVRE**"
+                ms_claims.append(c)
 
-            embed.add_field(name=f"📍 {spot}", value=status, inline=True)
+        # 🔮 MAGIC SQUARE SECTION
+        if ms_claims:
+            ms_text = ""
+            for c in ms_claims:
+                # Cleans up the string prefix for a sleek look
+                clean_spot = c["spot_name"].replace("Magic Square ", "").replace("Praça ", "")
+                ms_text += f"🔴 **{clean_spot}**\n└ Occupied by: <@{c['user_id']}> | `⏱️ {c['claimed_at']}`\n\n"
+            embed.add_field(name="🔮 MAGIC SQUARE ACTIVE CLAIMS", value=ms_text, inline=False)
+        else:
+            embed.add_field(
+                name="🔮 MAGIC SQUARE", 
+                value="🟢 **All chambers are vacant / Todos os spots estão livres**", 
+                inline=False
+            )
 
-        embed.set_footer(text="MIR4 Clan Management • Render Active")
+        # 🏔️ SECRET PEAK SECTION
+        if sp_claims:
+            sp_text = ""
+            for c in sp_claims:
+                clean_spot = c["spot_name"].replace("Secret Peak ", "").replace("Pico ", "")
+                sp_text += f"🔴 **{clean_spot}**\n└ Occupied by: <@{c['user_id']}> | `⏱️ {c['claimed_at']}`\n\n"
+            embed.add_field(name="🏔️ SECRET PEAK ACTIVE CLAIMS", value=sp_text, inline=False)
+        else:
+            embed.add_field(
+                name="🏔️ SECRET PEAK", 
+                value="🟢 **All chambers are vacant / Todos os spots estão livres**", 
+                inline=False
+            )
+
+        embed.set_footer(text="MIR4 Clan Management • Render High-Availability Active")
         return embed
