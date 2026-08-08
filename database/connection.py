@@ -1,12 +1,11 @@
 import aiosqlite
-from config import DATABASE_PATH
-from utils.logger import log
+from config import Config, logger
 
 class DatabaseConnection:
     @staticmethod
     async def get_connection() -> aiosqlite.Connection:
-        DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        db = await aiosqlite.connect(DATABASE_PATH)
+        Config.DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        db = await aiosqlite.connect(Config.DATABASE_PATH)
         db.row_factory = aiosqlite.Row
         await db.execute("PRAGMA foreign_keys = ON;")
         await db.execute("PRAGMA journal_mode = WAL;")
@@ -14,9 +13,8 @@ class DatabaseConnection:
 
     @staticmethod
     async def init_db():
-        log.info("Inicializando esquemas de banco de dados no SQLite...")
+        logger.info("Inicializando esquemas SQLite...")
         async with await DatabaseConnection.get_connection() as db:
-            # Tabela de Painéis
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS panel_settings (
                     guild_id INTEGER PRIMARY KEY,
@@ -26,7 +24,6 @@ class DatabaseConnection:
                 );
             """)
 
-            # Tabela de Claims Ativos
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS active_claims (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +36,6 @@ class DatabaseConnection:
             """)
             await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_guild_spot ON active_claims(guild_id, spot_name);")
 
-            # Tabela de Canais de Logs
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS guild_log_channels (
                     guild_id INTEGER NOT NULL,
@@ -50,4 +46,4 @@ class DatabaseConnection:
                 );
             """)
             await db.commit()
-        log.info("Tabelas e índices verificados e prontos.")
+        logger.info("Esquemas de banco de dados inicializados com sucesso.")
