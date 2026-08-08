@@ -9,12 +9,14 @@ class ClaimCog(commands.Cog):
     @app_commands.command(name="setup_painel", description="Inicializa o Painel Único do MIR4 no canal atual.")
     @commands.has_permissions(administrator=True)
     async def setup_painel(self, interaction: discord.Interaction):
+        # DEFER IMEDIATO PARA EVITAR "MIR4 está pensando..." E TIMEOUT
         await interaction.response.defer(ephemeral=True)
+        
         await self.bot.panel_service.update_panel(
             guild_id=interaction.guild_id, 
             target_channel=interaction.channel
         )
-        await interaction.followup.send("✅ Painel configurado com sucesso!", ephemeral=True)
+        await interaction.followup.send("✅ Painel operando e sincronizado!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ClaimCog(bot))
