@@ -113,7 +113,7 @@ class RoomSelect(discord.ui.Select):
 class TicketSelect(discord.ui.Select):
     def __init__(self, map_type, floor, spot):
         spots_info = Config.MAP_DATA[map_type]["floors"][floor][spot]
-        allowed_tickets = spots_info.get("tickets", [1, 2, 3])
+        allowed_tickets = spots_info.get("tickets", list((1, 2, 3)))
         options = [discord.SelectOption(label=f"{t} Ticket(s)", value=str(t)) for t in allowed_tickets]
         super().__init__(placeholder="Select the Tickets / Quantidade de Tickets", options=options, row=0)
 
@@ -125,7 +125,6 @@ class TicketSelect(discord.ui.Select):
         await interaction.response.defer(ephemeral=True)
         
         # Formata o spot de forma limpa, bonita e em inglês para salvar no Banco de Dados
-        # Ex: "Magic Square 10F - ADC2 - Room 3 (3 Tk)"
         map_label = "Magic Square" if view.map_type == "MAGIC_SQUARE" else "Secret Peak"
         spot_string = f"{map_label} {view.floor} - {view.spot} - Room {view.room_number} ({view.tickets} Tk)"
         
@@ -152,7 +151,7 @@ class MIR4PanelPersistentView(discord.ui.View):
 
     @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim")
     async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Abre o assistente dinâmico passo a passo em modo efêmero (invisível para os outros)
+        # Abre o assistente dinâmico passo a passo em modo efêmero
         await interaction.response.send_message(
             content="🧙‍♂️ **MIR4 Claim Wizard starting...**\nSelect your destination below:",
             view=ClaimWizardView(self.bot),
@@ -173,4 +172,4 @@ class MIR4PanelPersistentView(discord.ui.View):
         for c in user_claims:
             await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
 
-        await interaction.followup.send("✅ Your active claims have been released su
+        await interaction.followup.send("✅ Your active claims have been released
