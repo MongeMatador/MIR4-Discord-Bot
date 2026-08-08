@@ -7,13 +7,10 @@ class MIR4Embeds:
 
     @staticmethod
     def build_panel_embed(claims: List[Dict] = None) -> discord.Embed:
-        # We don't display active claims here! This keeps the main claim panel 
-        # completely static and elegant, avoiding spam, and preventing mixing 
-        # claims from Praça and Pico on the main interaction screen.
-        # All active room claims are shown in their specific floor channels (e.g., #ms-6f, #ps-10f).
-        
+        # Mantemos o painel de claims limpo, estático e elegante sem misturar os mapas.
+        # Todas as salas e andares ocupados são mostrados individualmente nos seus canais específicos.
         embed = discord.Embed(
-            title="⚔️ CLAN OPERATIONAL DASHBOARD | PAINEL DE COMANDOS ⚔️",
+            title="⚔️ CLAN OPERATIONAL DASHBOARD | PAINEL DE CLAIMS ⚔️",
             description=(
                 "🇺🇸 **How to claim a spot?**\n"
                 "• Click on **Claim Spot** below;\n"
@@ -21,7 +18,7 @@ class MIR4Embeds:
                 "🇧🇷 **Como reservar um spot?**\n"
                 "• Clique em **Claim Spot** abaixo;\n"
                 "• Selecione o Mapa, Andar, Spot, Sala e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n"
+                "🇪🇸 **¿Cómo solicitar uma ubicación?**\n"
                 "• Oprima en **Claim Spot** abajo;\n"
                 "• Seleccione el Mapa, Piso, Spot, Sala y Tickets."
             ),
