@@ -7,6 +7,8 @@ from ui.views import MIR4PanelPersistentView
 from config import logger
 
 class PanelService:
+    """Gerenciador atômico do painel único da guilda."""
+
     def __init__(self, bot, panel_repo: PanelRepository, claim_repo: ClaimRepository):
         self.bot = bot
         self.panel_repo = panel_repo
@@ -42,4 +44,4 @@ class PanelService:
             if dest_channel:
                 new_msg = await dest_channel.send(embed=embed, view=view)
                 await self.panel_repo.save_panel(guild_id, dest_channel.id, new_msg.id)
-                logger.info(f"[PANEL SERVICE] Novo painel enviado e registrado para a Guild {guild_id}.")
+                logger.info(f"[PANEL SERVICE] Novo painel criado e registrado para Guild {guild_id}.")
