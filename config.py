@@ -1,11 +1,11 @@
 import os
-import logging
 import sys
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import colorlog
 
-# Carrega variáveis do arquivo .env caso exista localmente
+# Carrega variáveis de ambiente
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -19,23 +19,19 @@ class Config:
 
     @classmethod
     def validate(cls):
-        """Valida se as variáveis de ambiente essenciais estão presentes."""
         if not cls.DISCORD_TOKEN:
             raise ValueError(
-                "CRÍTICO: A variável de ambiente DISCORD_TOKEN não foi encontrada!\n"
-                "Certifique-se de adicioná-la nas 'Environment Variables' do seu painel no Render."
+                "CRÍTICO: A variável DISCORD_TOKEN não foi encontrada!\n"
+                "Configure a chave DISCORD_TOKEN nas Environment Variables do Render."
             )
 
 def setup_logger() -> logging.Logger:
-    """Configura o sistema de logs colorido para o console e arquivo local."""
     logger = logging.getLogger("MIR4Bot")
     logger.setLevel(Config.LOG_LEVEL)
 
-    # Evita duplicidade de handlers em reloads
     if logger.handlers:
         return logger
 
-    # Handler para o Console do Render
     console_handler = logging.StreamHandler(sys.stdout)
     console_formatter = colorlog.ColoredFormatter(
         "%(log_color)s[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d]: %(message)s",
@@ -53,5 +49,4 @@ def setup_logger() -> logging.Logger:
 
     return logger
 
-# Instância de logger pronta para importação
 logger = setup_logger()
