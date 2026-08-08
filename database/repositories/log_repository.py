@@ -1,10 +1,8 @@
 from typing import Optional
 from database.connection import DatabaseConnection
-from utils.logger import log
+from config import logger
 
 class LogRepository:
-    """Gerencia a persistência dos canais de logs de claims e auditoria."""
-
     async def set_log_channel(self, guild_id: int, category: str, channel_id: int) -> bool:
         try:
             async with await DatabaseConnection.get_connection() as db:
@@ -16,10 +14,10 @@ class LogRepository:
                         updated_at = CURRENT_TIMESTAMP;
                 """, (guild_id, category.upper(), channel_id))
                 await db.commit()
-            log.info(f"[DB LOG] Canal de log salvo: Guild {guild_id} | Categoria {category} | Canal {channel_id}")
+            logger.info(f"[DB LOG] Canal registrado: Guild {guild_id} | Categoria {category} | Canal {channel_id}")
             return True
         except Exception as e:
-            log.error(f"[DB LOG ERROR] Falha ao salvar canal de log: {e}", exc_info=True)
+            logger.error(f"[DB LOG ERROR] Falha ao registrar canal de log: {e}", exc_info=True)
             return False
 
     async def get_log_channel_id(self, guild_id: int, category: str) -> Optional[int]:
