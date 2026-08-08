@@ -20,12 +20,12 @@ class MIR4Bot(commands.Bot):
 
         super().__init__(command_prefix="!", intents=intents)
 
-        # Repositórios
+        # Injeção de Repositórios
         self.panel_repo = PanelRepository()
         self.claim_repo = ClaimRepository()
         self.log_repo = LogRepository()
 
-        # Serviços
+        # Injeção de Serviços
         self.panel_service = PanelService(self, self.panel_repo, self.claim_repo)
         self.log_service = LogService(self, self.log_repo)
         self.claim_service = ClaimService(self.claim_repo, self.panel_service, self.log_service)
@@ -34,7 +34,7 @@ class MIR4Bot(commands.Bot):
         logger.info("Inicializando infraestrutura de Banco de Dados...")
         await DatabaseConnection.init_db()
 
-        # Registra a View Persistente do Painel Único de MIR4
+        # Registra a View Persistente para suporte aos botões no Render
         self.add_view(MIR4PanelPersistentView(self))
 
         logger.info("Carregando módulos Cogs...")
@@ -48,13 +48,13 @@ class MIR4Bot(commands.Bot):
     async def on_ready(self):
         logger.info(f"🤖 Bot autenticado com sucesso como: {self.user} (ID: {self.user.id})")
 
-# Servidor Web Leve para o UptimeRobot Manter o Render Ativo 24/7
 async def handle_ping(request):
-    return web.Response(text="MIR4 Discord Bot - Status Online 24/7", status=200)
+    return web.Response(text="MIR4 Discord Bot - Online 24/7", status=200)
 
 async def start_web_server():
     app = web.Application()
     app.router.add_get("/", handle_ping)
+    app.router.add_get("/health", handle_ping)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", Config.PORT)
@@ -62,9 +62,7 @@ async def start_web_server():
     logger.info(f"🌐 Servidor Web de HealthCheck (UptimeRobot) ativo na porta {Config.PORT}")
 
 async def main():
-    # Valida presença de variáveis essenciais
     Config.validate()
-
     bot = MIR4Bot()
     await start_web_server()
     async with bot:
@@ -76,4 +74,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Bot encerrado manualmente.")
     except Exception as e:
-        logger.critical(f"Erro fatal durante a inicialização: {e}", exc_info=True)
+        logger.critical(f"Erro fatal na inicialização: {e}", exc_info=True)
