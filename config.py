@@ -81,22 +81,22 @@ class Config:
 
     # MAGIC SQUARE: 3 Antidemon Chambers (ADC1, ADC2, ADC3) with 3 rooms each
     MS_ADC_SPOTS = {
-        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1-3]},
-        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1-3]},
-        "ADC3": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1-3]},
-        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]} # Boss limited to max 3 tickets
+        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "ADC3": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
     }
 
     # SECRET PEAK: Default Spots setup (6F to 10F)
     PS_DEFAULT_SPOTS = {
-        "A1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "A2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "N1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "N2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "S1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "S2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1-3]},
-        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]} # Boss limited to max 3 tickets
+        "A1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "A2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "N1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "N2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "S1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "S2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
     }
 
     MAP_DATA = {
@@ -109,16 +109,16 @@ class Config:
                 "9F": MS_ADC_SPOTS,
                 "10F": MS_ADC_SPOTS,
                 "11F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]},
-                    "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": [1, 2]},
-                    "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": [1, 2]}
+                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": list((1, 2))},
+                    "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": list((1, 2))}
                 },
                 "12F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]},
-                    "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": [1, 2]},
-                    "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": [1, 2]}
+                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": list((1, 2))},
+                    "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": list((1, 2))}
                 }
             }
         },
@@ -131,13 +131,13 @@ class Config:
                 "9F": PS_DEFAULT_SPOTS,
                 "10F": PS_DEFAULT_SPOTS,
                 "11F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]}
+                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
                 },
                 "12F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-                    "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1-3]},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1-3]}
+                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
+                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
                 }
             }
         }
