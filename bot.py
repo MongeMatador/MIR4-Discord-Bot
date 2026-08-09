@@ -10,14 +10,13 @@ from database.repositories.log_repository import LogRepository
 from services.panel_service import PanelService
 from services.log_service import LogService
 from services.claim_service import ClaimService
-from ui.views import MIR4PanelPersistentView
+from ui.views import MIR4MSPanelPersistentView, MIR4PSPanelPersistentView
 
 class MIR4Bot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.guilds = True
-
         super().__init__(command_prefix="!", intents=intents)
 
         # Injeção de Repositórios
@@ -34,8 +33,9 @@ class MIR4Bot(commands.Bot):
         logger.info("Inicializando infraestrutura de Banco de Dados...")
         await DatabaseConnection.init_db()
 
-        # Registra a View Persistente para suporte aos botões no Render
-        self.add_view(MIR4PanelPersistentView(self))
+        # Registra as Views Persistentes de cada mapa
+        self.add_view(MIR4MSPanelPersistentView(self))
+        self.add_view(MIR4PSPanelPersistentView(self))
 
         logger.info("Carregando módulos Cogs...")
         await self.load_extension("cogs.claim_cog")
