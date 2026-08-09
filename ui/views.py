@@ -2,36 +2,17 @@ import discord
 from config import Config
 
 class ClaimWizardView(discord.ui.View):
-    def __init__(self, bot):
+    def __init__(self, bot, map_type: str):
         super().__init__(timeout=120)
         self.bot = bot
-        self.map_type = None
+        self.map_type = map_type
         self.floor = None
         self.spot = None
         self.room_number = 1
         self.tickets = 1
 
-        # Começa adicionando o seletor de Mapas
-        self.add_item(MapSelect())
-
-class MapSelect(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label="Magic Square", emoji="🔮", value="MAGIC_SQUARE"),
-            discord.SelectOption(label="Secret Peak", emoji="🏔️", value="SECRET_PEAK")
-        ]
-        super().__init__(placeholder="Select Map / Selecione o Mapa", options=options, row=0)
-
-    async def callback(self, interaction: discord.Interaction):
-        view: ClaimWizardView = self.view
-        view.map_type = self.values # FIX: values é uma lista, pegamos a primeira opção 
-        
-        view.clear_items()
-        view.add_item(FloorSelect(view.map_type))
-        
-        lbl = Config.MAP_DATA[view.map_type]['label']
-        msg = f"🗺️ Map selected: **{lbl}**\n➡️ Now select the Floor:"
-        await interaction.response.edit_message(content=msg, view=view)
+        # Começa adicionando o seletor de Andares diretamente baseado no mapa correto!
+        self.add_item(FloorSelect(self.map_type))
 
 class FloorSelect(discord.ui.Select):
     def __init__(self, map_type):
@@ -41,7 +22,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values # FIX: values é uma lista, pegamos a primeira opção 
+        view.floor = self.values # FIX: Pegando elemento correto da lista
         
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
@@ -64,7 +45,7 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values # FIX: values é uma lista, pegamos a primeira opção 
+        view.spot = self.values # FIX: Pegando elemento correto da lista
         
         spots_info = Config.MAP_DATA[view.map_type]["floors"][view.floor][view.spot]
         max_rooms = spots_info.get("rooms", 1)
@@ -89,7 +70,7 @@ class RoomSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.room_number = int(self.values) # FIX: values é uma lista, pegamos a primeira opção 
+        view.room_number = int(self.values) # FIX: Pegando elemento correto da lista
         
         view.clear_items()
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
@@ -107,7 +88,7 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values) # FIX: values é uma lista, pegamos a primeira opção 
+        view.tickets = int(self.values) # FIX: Pegando elemento correto da lista
         
         view.clear_items()
         await interaction.response.defer(ephemeral=True)
@@ -126,30 +107,58 @@ class TicketSelect(discord.ui.Select):
             msg = f"❌ **Claim Failed!**\nThe spot **{spot_string}** is already occupied or you already have an active claim!"
             await interaction.followup.send(msg, ephemeral=True)
 
-class MIR4PanelPersistentView(discord.ui.View):
+class MIR4MSPanelPersistentView(discord.ui.View):
+    """Painel exclusivo para a Praça Mágica."""
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
 
-    @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim")
+    @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:MAGIC_SQUARE")
     async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         msg = "🧙‍♂️ **MIR4 Claim Wizard starting...**\nSelect your destination below:"
-        await interaction.response.send_message(content=msg, view=ClaimWizardView(self.bot), ephemeral=True)
+        await interaction.response.send_message(content=msg, view=ClaimWizardView(self.bot, "MAGIC_SQUARE"), ephemeral=True)
 
-    @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim")
+    @discord.ui.button(label="Cancel Claim", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:MAGIC_SQUARE")
     async def unclaim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
-
         claims = await self.bot.claim_repo.get_all_claims(guild_id)
-        user_claims = [c for c in claims if c["user_id"] == interaction.user.id]
-
+        user_claims = [c for c in claims if c["user_id"] == interaction.user.id and ("Magic Square" in c["spot_name"] or "🔮" in c["spot_name"])]
+        
         if not user_claims:
-            msg = "⚠️ You do not have any active spots claimed."
+            msg = "⚠️ You do not have any active spots claimed on Magic Square."
             return await interaction.followup.send(msg, ephemeral=True)
 
         for c in user_claims:
             await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
 
-        msg = "✅ Your active claims have been released successfully!"
+        msg = "✅ Your active claims on Magic Square have been released successfully!"
+        await interaction.followup.send(msg, ephemeral=True)
+
+class MIR4PSPanelPersistentView(discord.ui.View):
+    """Painel exclusivo para o Pico Secreto."""
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:SECRET_PEAK")
+    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg = "🧙‍♂️ **MIR4 Claim Wizard starting...**\nSelect your destination below:"
+        await interaction.response.send_message(content=msg, view=ClaimWizardView(self.bot, "SECRET_PEAK"), ephemeral=True)
+
+    @discord.ui.button(label="Cancel Claim", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:SECRET_PEAK")
+    async def unclaim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        claims = await self.bot.claim_repo.get_all_claims(guild_id)
+        user_claims = [c for c in claims if c["user_id"] == interaction.user.id and ("Secret Peak" in c["spot_name"] or "🏔️" in c["spot_name"])]
+        
+        if not user_claims:
+            msg = "⚠️ You do not have any active spots claimed on Secret Peak."
+            return await interaction.followup.send(msg, ephemeral=True)
+
+        for c in user_claims:
+            await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
+
+        msg = "✅ Your active claims on Secret Peak have been released successfully!"
         await interaction.followup.send(msg, ephemeral=True)
