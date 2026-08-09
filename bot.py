@@ -33,7 +33,7 @@ class MIR4Bot(commands.Bot):
         logger.info("Inicializando infraestrutura de Banco de Dados...")
         await DatabaseConnection.init_db()
 
-        # Registra as Views Persistentes de cada mapa
+        # Registra as Views Persistentes de cada mapa para que continuem ativas após o reinício
         self.add_view(MIR4MSPanelPersistentView(self))
         self.add_view(MIR4PSPanelPersistentView(self))
 
