@@ -11,7 +11,7 @@ class ClaimWizardView(discord.ui.View):
         self.room_number = 1
         self.tickets = 1
 
-        # Começa adicionando o seletor de Andares diretamente baseado no mapa correto!
+        # Começa adicionando diretamente o seletor de Andares com base no mapa correto! (Pula a etapa de escolher mapa!)
         self.add_item(FloorSelect(self.map_type))
 
 class FloorSelect(discord.ui.Select):
@@ -22,7 +22,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values # FIX: Pegando elemento correto da lista
+        view.floor = self.values[0] # FIX: Pegando a string de dentro da lista
         
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
@@ -45,7 +45,7 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values # FIX: Pegando elemento correto da lista
+        view.spot = self.values[0] # FIX: Pegando a string de dentro da lista
         
         spots_info = Config.MAP_DATA[view.map_type]["floors"][view.floor][view.spot]
         max_rooms = spots_info.get("rooms", 1)
@@ -70,7 +70,7 @@ class RoomSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.room_number = int(self.values) # FIX: Pegando elemento correto da lista
+        view.room_number = int(self.values[0]) # FIX: Pegando a string de dentro da lista
         
         view.clear_items()
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
@@ -88,7 +88,7 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values) # FIX: Pegando elemento correto da lista
+        view.tickets = int(self.values[0]) # FIX: Pegando a string de dentro da lista
         
         view.clear_items()
         await interaction.response.defer(ephemeral=True)
@@ -108,14 +108,14 @@ class TicketSelect(discord.ui.Select):
             await interaction.followup.send(msg, ephemeral=True)
 
 class MIR4MSPanelPersistentView(discord.ui.View):
-    """Painel exclusivo para a Praça Mágica."""
+    """Painel de claims exclusivo para a Praça Mágica."""
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
 
-    @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:MAGIC_SQUARE")
+    @discord.ui.button(label="Claim Spot (Praça)", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:MAGIC_SQUARE")
     async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        msg = "🧙‍♂️ **MIR4 Claim Wizard starting...**\nSelect your destination below:"
+        msg = "🧙‍♂️ **MIR4 Claim Wizard (Magic Square) starting...**\nSelect your floor below:"
         await interaction.response.send_message(content=msg, view=ClaimWizardView(self.bot, "MAGIC_SQUARE"), ephemeral=True)
 
     @discord.ui.button(label="Cancel Claim", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:MAGIC_SQUARE")
@@ -136,14 +136,14 @@ class MIR4MSPanelPersistentView(discord.ui.View):
         await interaction.followup.send(msg, ephemeral=True)
 
 class MIR4PSPanelPersistentView(discord.ui.View):
-    """Painel exclusivo para o Pico Secreto."""
+    """Painel de claims exclusivo para o Pico Secreto."""
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
 
-    @discord.ui.button(label="Claim Spot", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:SECRET_PEAK")
+    @discord.ui.button(label="Claim Spot (Pico)", style=discord.ButtonStyle.green, custom_id="mir4:btn_claim:SECRET_PEAK")
     async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        msg = "🧙‍♂️ **MIR4 Claim Wizard starting...**\nSelect your destination below:"
+        msg = "🧙‍♂️ **MIR4 Claim Wizard (Secret Peak) starting...**\nSelect your floor below:"
         await interaction.response.send_message(content=msg, view=ClaimWizardView(self.bot, "SECRET_PEAK"), ephemeral=True)
 
     @discord.ui.button(label="Cancel Claim", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:SECRET_PEAK")
