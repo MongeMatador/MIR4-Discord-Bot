@@ -6,23 +6,40 @@ class MIR4Embeds:
     """Sleek, static, high-performance instructional embeds for MIR4 Bot."""
 
     @staticmethod
-    def build_panel_embed(claims: List[Dict] = None) -> discord.Embed:
-        # Mantemos o painel de claims limpo, estático e elegante sem misturar os mapas.
-        # Todas as salas e andares ocupados são mostrados individualmente nos seus canais específicos.
-        embed = discord.Embed(
-            title="⚔️ CLAN OPERATIONAL DASHBOARD | PAINEL DE CLAIMS ⚔️",
-            description=(
+    def build_panel_embed(map_type: str) -> discord.Embed:
+        if map_type == "MAGIC_SQUARE":
+            title = "🔮 PAINEL OPERACIONAL | PRAÇA MÁGICA 🔮"
+            color = discord.Color.purple()
+            description = (
                 "🇺🇸 **How to claim a spot?**\n"
                 "• Click on **Claim Spot** below;\n"
-                "• Select your Map, Floor, Spot, Room, and Tickets.\n\n"
+                "• Select your Floor, Spot, Room, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n"
                 "• Clique em **Claim Spot** abaixo;\n"
-                "• Selecione o Mapa, Andar, Spot, Sala e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar uma ubicación?**\n"
+                "• Selecione o Andar, Spot, Sala e Tickets.\n\n"
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n"
                 "• Oprima en **Claim Spot** abajo;\n"
-                "• Seleccione el Mapa, Piso, Spot, Sala y Tickets."
-            ),
-            color=discord.Color.gold(),
+                "• Seleccione el Piso, Spot, Sala y Tickets."
+            )
+        else:
+            title = "🏔️ PAINEL OPERACIONAL | PICO SECRETO 🏔️"
+            color = discord.Color.orange()
+            description = (
+                "🇺🇸 **How to claim a spot?**\n"
+                "• Click on **Claim Spot** below;\n"
+                "• Select your Floor, Spot, and Tickets.\n\n"
+                "🇧🇷 **Como reservar um spot?**\n"
+                "• Clique em **Claim Spot** abaixo;\n"
+                "• Selecione o Andar, Spot e Tickets.\n\n"
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n"
+                "• Oprima en **Claim Spot** abajo;\n"
+                "• Seleccione el Piso, Spot e Tickets."
+            )
+
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=color,
             timestamp=datetime.utcnow()
         )
         
@@ -31,7 +48,7 @@ class MIR4Embeds:
             value=(
                 "• 🇺🇸 **Real-time boards:** Active claims are shown in each specific floor channel.\n"
                 "• 🇧🇷 **Placares em tempo real:** As salas ocupadas aparecem nos canais específicos de cada andar.\n"
-                "• 🇪🇸 **Tableros en tiempo real:** Las salas ocupadas se muestran en los canales específicos de cada piso."
+                "• 🇪🇸 **Tableros en tempo real:** Las salas ocupadas se muestran en los canales específicos de cada piso."
             ),
             inline=False
         )
