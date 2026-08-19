@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from database.connection import DatabaseManager
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
@@ -10,9 +11,11 @@ class AdminCog(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def limpar_claims(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        await self.bot.claim_repo.clear_all_claims(interaction.guild_id)
-        await self.bot.panel_service.update_panel(interaction.guild_id)
-        await interaction.followup.send("🧹 Todos os claims foram limpos!", ephemeral=True)
+        async with DatabaseManager.get_connection() as db:
+            await db.execute("DELETE FROM claims")
+            await db.execute("DELETE FROM spot_queues")
+            await db.commit()
+        await interaction.followup.send("🧹 Todos os claims e filas foram limpos com sucesso!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
