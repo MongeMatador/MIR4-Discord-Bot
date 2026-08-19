@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-import aiosqlite
 from datetime import datetime, timedelta
 from config import Config, logger
 from database.connection import DatabaseManager
@@ -41,7 +40,7 @@ class ClaimCog(commands.Cog):
                     break
             
             if not next_target:
-                h, m = map(int, target_times[0].split(":"))
+                h, m = map(int, target_times.split(":"))
                 next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
 
             diff = next_target - now_server
@@ -79,20 +78,18 @@ class ClaimCog(commands.Cog):
     async def dashboard_updater(self):
         now = datetime.utcnow()
         expired_claims = []
-        async with DatabaseManager.get_connection() as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT * FROM claims WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND datetime(ends_at) <= datetime(?)",
-                (now.isoformat(),)
-            ) as cursor:
-                expired_claims = [dict(r) for r in await cursor.fetchall()]
+        async with await DatabaseManager.get_connection() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM claims WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
+                now
+            )
+            expired_claims = [dict(r) for r in rows]
 
             if expired_claims:
-                await db.execute(
-                    "UPDATE claims SET status = 'EXPIRED' WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND datetime(ends_at) <= datetime(?)",
-                    (now.isoformat(),)
+                await conn.execute(
+                    "UPDATE claims SET status = 'EXPIRED' WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
+                    now
                 )
-                await db.commit()
 
         for claim in expired_claims:
             guild_id = claim["guild_id"]
@@ -104,10 +101,9 @@ class ClaimCog(commands.Cog):
             await self.check_and_process_queue(guild_id, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'])
 
         active_dashboards = []
-        async with DatabaseManager.get_connection() as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT guild_id, map_type, floor FROM floor_dashboards") as cursor:
-                active_dashboards = [dict(r) for r in await cursor.fetchall()]
+        async with await DatabaseManager.get_connection() as conn:
+            rows = await conn.fetch("SELECT guild_id, map_type, floor FROM floor_dashboards")
+            active_dashboards = [dict(r) for r in rows]
 
         for d in active_dashboards:
             try:
