@@ -1,8 +1,6 @@
 import asyncpg
 import os
-import socket
-from urllib.parse import urlparse
-from config import Config, logger
+from config import logger
 
 class DatabaseManager:
     _pool = None
@@ -14,41 +12,10 @@ class DatabaseManager:
         if not db_url:
             raise ValueError("CRÍTICO: A variável DATABASE_URL não foi configurada no Render!")
 
-        # Parseia a URL de conexão
-        parsed = urlparse(db_url)
-        hostname = parsed.hostname
-        port = parsed.port or 5432
-        username = parsed.username
-        password = parsed.password
-        database = parsed.path.lstrip("/")
-
-        # RESOLVEDOR INTELIGENTE DE DNS (Força IPv4 para evitar "Network is unreachable" no Render)
-        try:
-            logger.info(f"Resolvendo DNS de {hostname} para IPv4...")
-            addr_infos = socket.getaddrinfo(hostname, port, family=socket.AF_INET, proto=socket.IPPROTO_TCP)
-            ipv4_ip = addr_infos[0][4][0]
-            logger.info(f"Sucesso! Host {hostname} resolvido para o IP IPv4: {ipv4_ip}")
-        except socket.gaierror as dns_err:
-            if "db.oauvpoyehhqjqbsuwvzg.supabase.co" in hostname:
-                raise ValueError(
-                    "\n\n❌ [ERRO CRÍTICO DE REDE]\n"
-                    "O endereço 'db.oauvpoyehhqjqbsuwvzg.supabase.co' é estritamente IPv6-only!\n"
-                    "Como o Render gratuito não suporta conexões IPv6, o bot não consegue se conectar.\n"
-                    "Por favor, altere sua DATABASE_URL no painel do Render para usar a porta 6543 (Connection Pooler):\n"
-                    "postgresql://postgres.oauvpoyehhqjqbsuwvzg:SUA_SENHA@aws-0-sa-east-1.pooler.supabase.com:6543/postgres\n"
-                ) from dns_err
-            
-            logger.warning(f"Não foi possível forçar IPv4 para {hostname}. Usando host original: {dns_err}")
-            ipv4_ip = hostname
-
-        # Configura o Pool de conexões com o banco externo de forma segura com SSL
+        # Conexão nativa usando a URL do Pooler (Porta 6543)
+        # Como o endereço da porta 6543 resolve nativamente para IPv4, o asyncpg faz a conexão limpa de primeira!
         cls._pool = await asyncpg.create_pool(
-            host=ipv4_ip,
-            port=port,
-            user=username,
-            password=password,
-            database=database,
-            server_hostname=hostname, # Garante que a validação de certificado SSL funcione mesmo conectando via IP direto!
+            db_url,
             min_size=1,
             max_size=5,
             command_timeout=60.0
