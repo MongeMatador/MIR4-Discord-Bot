@@ -14,32 +14,30 @@ class DatabaseConnection:
         logger.info("Inicializando esquemas e tabelas do SQLite...")
         async with DatabaseConnection.get_connection() as db:
             db.row_factory = aiosqlite.Row
-
             # Configurações de segurança contra travamentos de disco
             await db.execute("PRAGMA foreign_keys = ON;")
             await db.execute("PRAGMA journal_mode = WAL;")
             await db.execute("PRAGMA busy_timeout = 5000;")
 
-            # Migração automática: se a tabela antiga não suportar múltiplos painéis, remove para recriar
+            # Migração automática: se a tabela antiga de painel único existir, a removemos para recriar
             try:
                 async with db.execute("PRAGMA table_info(panel_settings);") as cursor:
                     columns = [row[1] for row in await cursor.fetchall()]
-                if columns and "floor" not in columns:
-                    logger.warning("[DB] Antiga tabela panel_settings detectada sem a coluna 'floor'. Recriando tabela para suporte a múltiplos painéis...")
+                if columns and "map_type" not in columns:
+                    logger.warning("[DB] Antiga tabela panel_settings de painel único detectada. Recriando para suporte a múltiplos mapas...")
                     await db.execute("DROP TABLE panel_settings;")
             except Exception as e:
                 logger.error(f"[DB MIGRATE WARNING]: {e}")
 
-            # Tabela de Configurações de Painéis (Chave composta por Guild, Mapa e Andar)
+            # Tabela de Configurações de Painéis (Chave composta por Guild e Mapa)
             await db.execute("""
             CREATE TABLE IF NOT EXISTS panel_settings (
                 guild_id INTEGER NOT NULL,
                 map_type TEXT NOT NULL,
-                floor TEXT NOT NULL,
                 channel_id INTEGER NOT NULL,
                 message_id INTEGER NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (guild_id, map_type, floor)
+                PRIMARY KEY (guild_id, map_type)
             );
             """)
 
