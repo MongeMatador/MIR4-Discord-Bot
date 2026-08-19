@@ -105,3 +105,4 @@ class PanelService:
                         channel_id = EXCLUDED.channel_id,
                         message_id = EXCLUDED.message_id
                 """, guild_id, map_type, floor, dest_channel.id, new_msg.id)
+📄
