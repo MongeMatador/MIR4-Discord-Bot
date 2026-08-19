@@ -138,7 +138,7 @@ class ClaimCog(commands.Cog):
             app_commands.Choice(name="12F", value="12F")
         ]
     )
-    @commands.has_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True) # CORRIGIDO ✅
     async def setup_painel(self, interaction: discord.Interaction, map_type: str, floor: str = None):
         await interaction.response.defer(ephemeral=True)
         floor_key = floor if floor else ""
@@ -160,6 +160,12 @@ class ClaimCog(commands.Cog):
             msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
             
         await interaction.followup.send(msg, ephemeral=True)
+
+    # Tratador de erro amigável para falta de permissão
+    @setup_painel.error
+    async def setup_painel_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.errors.MissingPermissions):
+            await interaction.response.send_message("❌ Você não tem permissão de Administrador para usar este comando!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ClaimCog(bot))
