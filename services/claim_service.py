@@ -73,7 +73,6 @@ class ClaimService:
             
             occupied_rooms = {r["room_number"]: r for r in rows}
 
-            # 🛠️ SISTEMA INTELIGENTE DE AUTO-ALOCAÇÃO DE SALAS (Sem que o usuário precise escolher!)
             assigned_room = None
 
             # Cenário A: Se houver algum quarto completamente livre, aloca nele direto
@@ -82,13 +81,13 @@ class ClaimService:
                     assigned_room = r
                     break
 
-            # Cenário B: Se todos os quartos têm claims, tenta achar um que seja "Tempo Restante" (VACANT_REMAINING)
+            # Cenário B: Se todos estiverem ocupados, tenta achar um "Tempo Restante" (VACANT_REMAINING)
             if assigned_room is None:
                 vacant_rooms = [r for r in rows if r["status"] == "VACANT_REMAINING"]
                 if vacant_rooms:
                     # Aloca no quarto com o MENOR TEMPO restante (ends_at mais próximo)
                     vacant_rooms.sort(key=lambda x: x["ends_at"])
-                    target_claim = vacant_rooms[0]
+                    target_claim = vacant_rooms[0] # EXTRAÇÃO CORRETA ✅
                     assigned_room = target_claim["room_number"]
                     
                     # Consome o tempo restante
@@ -100,7 +99,7 @@ class ClaimService:
                     await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, assigned_room, "CLAIM_VACANT", "Assumiu tempo restante")
                     return True, f"✅ **Sucesso!** Você assumiu o tempo restante de `{floor} - {spot_type}` (Sala {assigned_room})."
 
-            # Cenário C: Todos os quartos estão ativos por outros jogadores. Entra na fila.
+            # Cenário C: Todos os quartos ativos por outros jogadores. Entra na fila.
             if assigned_room is None:
                 if spot_info.get("allow_queue", True):
                     q_size = await conn.fetchval(
