@@ -8,7 +8,6 @@ class ClaimWizardView(discord.ui.View):
         self.map_type = map_type
         self.floor = None
         self.spot = None
-        self.room_number = 1
         self.tickets = 1
         self.add_item(FloorSelect(self.map_type))
 
@@ -20,7 +19,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values[0]
+        view.floor = self.values[0] # CORRIGIDO: Pega a string direto da lista!
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
         lbl = Config.MAP_DATA[view.map_type]['label']
@@ -41,39 +40,19 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values[0]
-        spots_info = Config.MAP_DATA[view.map_type]["floors"][view.floor][view.spot]
-        max_rooms = spots_info.get("rooms", 1)
+        view.spot = self.values[0] # CORRIGIDO: Pega a string direto da lista!
         view.clear_items()
-        lbl = Config.MAP_DATA[view.map_type]['label']
-        if max_rooms > 1:
-            view.add_item(RoomSelect(max_rooms))
-            msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ Select the Room (Chamber Instance):"
-            await interaction.response.edit_message(content=msg, view=view)
-        else:
-            view.room_number = 1
-            view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
-            msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}** | Room: **1**\n➡️ How many Tickets?"
-            await interaction.response.edit_message(content=msg, view=view)
-
-class RoomSelect(discord.ui.Select):
-    def __init__(self, max_rooms):
-        options = [discord.SelectOption(label=f"Room {i}", value=str(i)) for i in range(1, max_rooms + 1)]
-        super().__init__(placeholder="Select Room / Selecione a Sub-sala", options=options, row=0)
-
-    async def callback(self, interaction: discord.Interaction):
-        view: ClaimWizardView = self.view
-        view.room_number = int(self.values[0])
-        view.clear_items()
+        
+        # PULA QUARTO: Independente do número de quartos, vai direto para Tickets! O banco aloca automaticamente.
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
         lbl = Config.MAP_DATA[view.map_type]['label']
-        msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}** | Room: **{view.room_number}**\n➡️ How many Tickets?"
+        msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ How many Tickets?"
         await interaction.response.edit_message(content=msg, view=view)
 
 class TicketSelect(discord.ui.Select):
     def __init__(self, map_type, floor, spot):
         spots_info = Config.MAP_DATA[map_type]["floors"][floor][spot]
-        allowed_tickets = spots_info.get("tickets", [1, 3, 6])
+        allowed_tickets = spots_info.get("tickets") or [1, 3, 6]
         ticket_labels = {
             1: "1 Ticket (30m)",
             2: "2 Tickets (1h)",
@@ -88,11 +67,15 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values[0])
+        view.tickets = int(self.values[0]) # CORRIGIDO: Pega o valor correto!
         view.clear_items()
-        await interaction.response.defer(ephemeral=True)
+        
+        # ⚡ FEEDBACK INSTANTÂNEO: Limpa a tela e avisa o usuário no exato milissegundo do clique!
+        await interaction.response.edit_message(content="⌛ **Processando seu claim no Supabase... Por favor, aguarde.**", view=None)
+        
+        # Processa em segundo plano para não dar timeout de interação do Discord
         success, outcome_msg = await view.bot.claim_service.register_claim(
-            interaction.guild_id, interaction.user, view.map_type, view.floor, view.spot, view.room_number, view.tickets
+            interaction.guild_id, interaction.user, view.map_type, view.floor, view.spot, view.tickets
         )
         await interaction.followup.send(outcome_msg, ephemeral=True)
 
