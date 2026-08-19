@@ -4,8 +4,6 @@ from datetime import datetime, timedelta
 from config import Config
 
 class MIR4Embeds:
-    """Sleek, static, high-performance instructional embeds for MIR4 Bot."""
-
     @staticmethod
     def build_panel_embed(map_type: str) -> discord.Embed:
         if map_type == "MAGIC_SQUARE":
@@ -32,7 +30,6 @@ class MIR4Embeds:
             inline=False
         )
         
-        # AJUSTE SEGURO: Adiciona a imagem ilustrativa do mapa do Pico diretamente no painel de cliques do Pico!
         if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
             embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
             
@@ -95,7 +92,6 @@ class MIR4Embeds:
 
             embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=False)
 
-        # AJUSTE SEGURO: Adiciona o mapa do Pico também no placar dinâmico de cada andar do Pico!
         if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
             embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
 
