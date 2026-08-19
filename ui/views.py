@@ -19,7 +19,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values[0] # CORRIGIDO ✅
+        view.floor = self.values[0] # EXTRAÇÃO CORRETA ✅
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
         lbl = Config.MAP_DATA[view.map_type]['label']
@@ -40,10 +40,10 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values[0] # CORRIGIDO ✅
+        view.spot = self.values[0] # EXTRAÇÃO CORRETA ✅
         view.clear_items()
         
-        # PULA QUARTO: Direto para a seleção de Tickets!
+        # PULA QUARTO: Direto para a seleção de Tickets! O banco aloca de forma automática
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ How many Tickets?"
@@ -67,10 +67,10 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values[0]) # CORRIGIDO ✅
+        view.tickets = int(self.values[0]) # EXTRAÇÃO E CONVERSÃO CORRETA ✅
         view.clear_items()
         
-        # ⚡ FEEDBACK INSTANTÂNEO: Limpa a tela na hora para o usuário ver que está processando!
+        # ⚡ FEEDBACK INSTANTÂNEO: Altera a mensagem na hora, eliminando travamento visual!
         await interaction.response.edit_message(content="⌛ **Processando seu claim no Supabase... Por favor, aguarde.**", view=None)
         
         success, outcome_msg = await view.bot.claim_service.register_claim(
