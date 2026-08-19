@@ -33,7 +33,7 @@ class MIR4Bot(commands.Bot):
         logger.info("Inicializando infraestrutura de Banco de Dados...")
         await DatabaseConnection.init_db()
 
-        # Registra as Views Persistentes de cada mapa para que continuem ativas após o reinício
+        # Registra as duas Views Persistentes de cada mapa para suporte contínuo no Render
         self.add_view(MIR4MSPanelPersistentView(self))
         self.add_view(MIR4PSPanelPersistentView(self))
 
@@ -46,7 +46,7 @@ class MIR4Bot(commands.Bot):
         await self.tree.sync()
 
     async def on_ready(self):
-        logger.info(f"🤖 Bot autenticado com sucesso como: {self.user} (ID: {self.user.id})")
+        logger.info(f"🤖 Bot autenticado com sucesso como: {self.user} (ID: {self.user.id})\")")
 
 async def handle_ping(request):
     return web.Response(text="MIR4 Discord Bot - Online 24/7", status=200)
