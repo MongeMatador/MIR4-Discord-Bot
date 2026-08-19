@@ -100,7 +100,7 @@ class Config:
         "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 3]},
         "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": [1, 2, 3]},
         "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": [1, 2, 3]},
-        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3, 6]}
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3]}
     }
 
     # PICO SECRETO: 6F ao 10F (Coordenadas geográficas táticas com teto de 6 tickets e 3 para o Boss)
@@ -111,20 +111,20 @@ class Config:
         "N2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 3, 6]},
         "S1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 3, 6]},
         "S2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 3, 6]},
-        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3, 6]},
+        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3]},
         "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 3]}
     }
 
     # PICO SECRETO: 11F
     PS_11F_SPOTS = {
-        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3, 6]},
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3]},
         "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 3]}
     }
 
     # PICO SECRETO: 12F
     PS_12F_SPOTS = {
-        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3, 6]},
-        "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3, 6]},
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3]},
+        "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 3]},
         "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 3]}
     }
 
