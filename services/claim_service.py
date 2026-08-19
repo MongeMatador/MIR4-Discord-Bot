@@ -51,21 +51,8 @@ class ClaimService:
                 VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10)
             """, guild_id, map_type, floor, spot_type, room_number, user_id, username, now, ends, tickets)
 
-    async def register_claim(self, guild_id: int, user: discord.User, map_type: str, floor: str, spot_type: str, room_number: int, tickets: int) -> tuple:
+    async def register_claim(self, guild_id: int, user: discord.User, map_type: str, floor: str, spot_type: str, tickets: int) -> tuple:
         async with await DatabaseManager.get_connection() as conn:
-            # Sanitiza os slots órfãos
-            row = await conn.fetchval(
-                "SELECT COUNT(*) FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4",
-                guild_id, map_type, floor, spot_type
-            )
-            q_size = row if row else 0
-            
-            if q_size == 0:
-                await conn.execute("""
-                    UPDATE claims SET status = 'CANCELLED'
-                    WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4 AND room_number = $5 AND status = 'VACANT_REMAINING'
-                """, guild_id, map_type, floor, spot_type, room_number)
-
             # Validação Multi-Contas por mapa
             active = await conn.fetchrow(
                 "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND user_id = $3 AND status = 'ACTIVE'",
@@ -74,24 +61,53 @@ class ClaimService:
             if active:
                 return False, f"❌ **Falhou!** Você já possui uma sala ativa em **{map_type.replace('_', ' ')}**!"
 
-            # Busca se o spot desejado já está ocupado
-            occupied = await conn.fetchrow("""
-                SELECT * FROM claims
-                WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4 AND room_number = $5 AND status IN ('ACTIVE', 'VACANT_REMAINING')
-            """, guild_id, map_type, floor, spot_type, room_number)
+            # Busca dados do spot
+            spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
+            max_rooms = spot_info.get("rooms", 1)
 
-            if occupied:
-                if occupied["status"] == "VACANT_REMAINING":
+            # Busca ocupação atual deste spot
+            rows = await conn.fetch("""
+                SELECT room_number, status, ends_at, id FROM claims
+                WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4 AND status IN ('ACTIVE', 'VACANT_REMAINING')
+            """, guild_id, map_type, floor, spot_type)
+            
+            occupied_rooms = {r["room_number"]: r for r in rows}
+
+            # 🛠️ SISTEMA INTELIGENTE DE AUTO-ALOCAÇÃO DE SALAS (Sem que o usuário precise escolher!)
+            assigned_room = None
+
+            # Cenário A: Se houver algum quarto completamente livre, aloca nele direto
+            for r in range(1, max_rooms + 1):
+                if r not in occupied_rooms:
+                    assigned_room = r
+                    break
+
+            # Cenário B: Se todos os quartos têm claims, tenta achar um que seja "Tempo Restante" (VACANT_REMAINING)
+            if assigned_room is None:
+                vacant_rooms = [r for r in rows if r["status"] == "VACANT_REMAINING"]
+                if vacant_rooms:
+                    # Aloca no quarto com o MENOR TEMPO restante (ends_at mais próximo)
+                    vacant_rooms.sort(key=lambda x: x["ends_at"])
+                    target_claim = vacant_rooms[0]
+                    assigned_room = target_claim["room_number"]
+                    
+                    # Consome o tempo restante
                     await conn.execute(
                         "UPDATE claims SET status = 'ACTIVE', user_id = $1, username = $2 WHERE id = $3",
-                        user.id, user.display_name, occupied["id"]
+                        user.id, user.display_name, target_claim["id"]
                     )
                     await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
-                    await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "CLAIM_VACANT", "Assumiu tempo restante")
-                    return True, f"✅ **Sucesso!** Você assumiu o tempo restante de `{floor} - {spot_type}` (Sala {room_number})."
+                    await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, assigned_room, "CLAIM_VACANT", "Assumiu tempo restante")
+                    return True, f"✅ **Sucesso!** Você assumiu o tempo restante de `{floor} - {spot_type}` (Sala {assigned_room})."
 
-                spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
+            # Cenário C: Todos os quartos estão ativos por outros jogadores. Entra na fila.
+            if assigned_room is None:
                 if spot_info.get("allow_queue", True):
+                    q_size = await conn.fetchval(
+                        "SELECT COUNT(*) FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4",
+                        guild_id, map_type, floor, spot_type
+                    ) or 0
+                    
                     if q_size >= Config.MAX_QUEUE_SIZE:
                         return False, f"❌ **Fila Cheia!** O limite de {Config.MAX_QUEUE_SIZE} pessoas na fila foi atingido."
 
@@ -105,48 +121,47 @@ class ClaimService:
                 else:
                     return False, "❌ **Ocupado!** Fila de espera desabilitada para eventos rápidos Frenzy/Fury."
 
-            # Se livre, cria a claim normalmente
+            # Cria a claim normalmente no quarto alocado automaticamente
             now = datetime.utcnow()
             ends = now + timedelta(minutes=tickets * 30)
             await conn.execute("""
                 INSERT INTO claims (guild_id, map_type, floor, spot_type, room_number, status, user_id, username, started_at, ends_at, tickets)
                 VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10)
-            """, guild_id, map_type, floor, spot_type, room_number, user.id, user.display_name, now, ends, tickets)
+            """, guild_id, map_type, floor, spot_type, assigned_room, user.id, user.display_name, now, ends, tickets)
             
         await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
-        await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "CLAIM", f"Tickets: {tickets} ({tickets * 30}m)")
-        return True, f"✅ **Sucesso!** Spot `{floor} - {spot_type}` (Sala {room_number}) reservado."
+        await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, assigned_room, "CLAIM", f"Tickets: {tickets} ({tickets * 30}m)")
+        return True, f"✅ **Sucesso!** Spot `{floor} - {spot_type}` (Sala {assigned_room}) reservado."
 
     async def release_claim(self, guild_id: int, user: discord.User, map_type: str) -> str:
-        async with DatabaseManager.get_connection() as db:
-            async with await DatabaseManager.get_connection() as conn:
-                claim = await conn.fetchrow(
-                    "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND user_id = $3 AND status = 'ACTIVE'",
+        async with await DatabaseManager.get_connection() as conn:
+            claim = await conn.fetchrow(
+                "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND user_id = $3 AND status = 'ACTIVE'",
+                guild_id, map_type, user.id
+            )
+
+            if not claim:
+                in_q = await conn.fetchrow(
+                    "SELECT * FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND user_id = $3",
                     guild_id, map_type, user.id
                 )
+                if in_q:
+                    await conn.execute("DELETE FROM spot_queues WHERE id = $1", in_q["id"])
+                    await self.panel_service.update_floor_dashboard(guild_id, map_type, in_q["floor"])
+                    return f"✅ Você saiu da fila de espera do spot **{in_q['spot_type']}**."
+                return "⚠️ Você não possui claims ativos ou posições em filas."
 
-                if not claim:
-                    in_q = await conn.fetchrow(
-                        "SELECT * FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND user_id = $3",
-                        guild_id, map_type, user.id
-                    )
-                    if in_q:
-                        await conn.execute("DELETE FROM spot_queues WHERE id = $1", in_q["id"])
-                        await self.panel_service.update_floor_dashboard(guild_id, map_type, in_q["floor"])
-                        return f"✅ Você saiu da fila de espera do spot **{in_q['spot_type']}**."
-                    return "⚠️ Você não possui claims ativos ou posições em filas."
+            floor = claim["floor"]
+            spot_type = claim["spot_type"]
+            room_number = claim["room_number"]
 
-                floor = claim["floor"]
-                spot_type = claim["spot_type"]
-                room_number = claim["room_number"]
-
-                queue_list = await self.get_queue_list(map_type, floor, spot_type)
-                if queue_list:
-                    await conn.execute("UPDATE claims SET status = 'VACANT_REMAINING' WHERE id = $1", claim["id"])
-                    msg = f"✅ Você liberou o spot **{spot_type}**. Ele virou **Tempo Restante** no placar!"
-                else:
-                    await conn.execute("UPDATE claims SET status = 'CANCELLED' WHERE id = $1", claim["id"])
-                    msg = f"✅ Você desocupou o spot **{spot_type}**!"
+            queue_list = await self.get_queue_list(map_type, floor, spot_type)
+            if queue_list:
+                await conn.execute("UPDATE claims SET status = 'VACANT_REMAINING' WHERE id = $1", claim["id"])
+                msg = f"✅ Você liberou o spot **{spot_type}**. Ele virou **Tempo Restante** no placar!"
+            else:
+                await conn.execute("UPDATE claims SET status = 'CANCELLED' WHERE id = $1", claim["id"])
+                msg = f"✅ Você desocupou o spot **{spot_type}**!"
 
         await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
         await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "RELEASE")
@@ -172,4 +187,4 @@ class ClaimService:
             """, guild_id, map_type, floor, event_key, now, user.id)
 
         await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
-        return True, f"✅ Rotação de **{event_key}** updated para as {now.strftime('%H:%M')}!"
+        return True, f"✅ Rotação de **{event_key}** atualizada para as {now.strftime('%H:%M')}!"
