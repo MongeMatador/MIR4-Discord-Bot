@@ -3,7 +3,6 @@ import sys
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-import colorlog
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -41,16 +40,16 @@ class Config:
         },
         "SECRET_PEAK": {
             "DEFAULT": {
-                "SOUTH": ["01:00", "07:00", "13:00", "19:00"],
-                "NORTH": ["04:00", "10:00", "16:00", "22:00"]
+                "SUL": ["01:00", "07:00", "13:00", "19:00"],
+                "NORTE": ["04:00", "10:00", "16:00", "22:00"]
             },
             "11F": {
-                "SOUTH": ["07:00", "19:00"],
-                "NORTH": ["01:00", "13:00"]
+                "SUL": ["07:00", "19:00"],
+                "NORTE": ["01:00", "13:00"]
             },
             "12F": {
-                "SOUTH": ["07:00", "19:00"],
-                "NORTH": ["01:00", "13:00"]
+                "SUL": ["07:00", "19:00"],
+                "NORTE": ["01:00", "13:00"]
             }
         }
     }
@@ -60,65 +59,85 @@ class Config:
         "MAGIC_SQUARE": {
             "L1": {"label": "L1", "emoji": "⚔️"},
             "L2": {"label": "L2", "emoji": "⚔️"},
-            "SEAL": {"label": "SEAL", "emoji": "🗡️"},
-            "PLANT": {"label": "PLANT", "emoji": "🌿"},
-            "GOLDEN_ORE": {"label": "GOLDEN ORE", "emoji": "⛏️"}
+            "MINERIO_DOURADO": {"label": "Minério Dourado", "emoji": "⛏️"},
+            "PLANTA": {"label": "Planta", "emoji": "🌿"},
+            "SELAR": {"label": "Selar", "emoji": "🗡️"}
         },
         "SECRET_PEAK": {
-            "YELLOW_BOSS_LEFT": {"label": "YELLOW BOSS LEFT", "emoji": "⬅️"},
-            "YELLOW_BOSS_RIGHT": {"label": "YELLOW BOSS RIGHT", "emoji": "➡️"},
-            "GOLDEN_ORE": {"label": "GOLDEN ORE", "emoji": "⛏️"}
+            "YELLOW_BOSS_LEFT": {"label": "Yellow Boss Left", "emoji": "⬅️"},
+            "YELLOW_BOSS_RIGHT": {"label": "Yellow Boss Right", "emoji": "➡️"},
+            "MINERIO_DOURADO": {"label": "Minério Dourado", "emoji": "⛏️"}
         }
     }
 
     @classmethod
     def get_valid_events_for_floor(cls, map_type: str, floor: str):
-        if map_type == "MAGIC_SQUARE" and floor in ["11F", "12F"]:
-            return ["L1", "L2"]
-        if map_type == "SECRET_PEAK" and floor in ["11F", "12F"]:
-            return []
-        return list(cls.TRACKABLE_EVENTS.get(map_type, {}).keys())
+        if map_type == "MAGIC_SQUARE":
+            if floor in ["11F", "12F"]:
+                return ["L1", "L2"]
+            return ["L1", "L2", "MINERIO_DOURADO", "PLANTA", "SELAR"]
+        elif map_type == "SECRET_PEAK":
+            if floor in ["11F", "12F"]:
+                return []
+            return ["YELLOW_BOSS_LEFT", "YELLOW_BOSS_RIGHT", "MINERIO_DOURADO"]
+        return []
 
-    # MAGIC SQUARE: 3 Antidemon Chambers (ADC1, ADC2, ADC3) with 3 rooms each
-    MS_ADC_SPOTS = {
-        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "ADC3": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
+    # MAPA DA PRAÇA: do 6F ao 8F (1 ADC com 3 sub-salas), do 9F ao 10F (2 ADCs), 11F/12F (3 ADCs + fury/frenzy)
+    MS_LOW_SPOTS = {
+        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]}
     }
 
-    # MAGIC SQUARE: High floors (11F and 12F) with 3 ADCs and 3-Ticket Fury/Frenzy
+    MS_MID_SPOTS = {
+        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]}
+    }
+
     MS_HIGH_SPOTS = {
-        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "ADC3": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": list((1, 2, 3))},
-        "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": list((1, 2, 3))},
-        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))}
+        "ADC1": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "ADC2": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "ADC3": {"rooms": 3, "emoji": "🚪", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]},
+        "FURY": {"rooms": 1, "emoji": "⚡", "allow_queue": False, "tickets": [1, 3]},
+        "FRENZY": {"rooms": 1, "emoji": "🔥", "allow_queue": False, "tickets": [1, 3]},
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 2, 4]}
     }
 
-    # SECRET PEAK: Default Spots setup (6F to 10F)
+    # PICO SECRETO: 6F ao 10F (Coordenadas geográficas táticas com teto de 6 tickets e 3 para o Boss)
     PS_DEFAULT_SPOTS = {
-        "A1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "A2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "N1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "N2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "S1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "S2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
-        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
+        "A1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "A2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "N1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "N2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "S1": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "S2": {"rooms": 1, "emoji": "📍", "allow_queue": True, "tickets": [1, 2, 4]},
+        "SUMMON": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]}
+    }
+
+    # PICO SECRETO: 11F
+    PS_11F_SPOTS = {
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]}
+    }
+
+    # PICO SECRETO: 12F
+    PS_12F_SPOTS = {
+        "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 2, 4]},
+        "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": [1, 2, 4]},
+        "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": [1, 2]}
     }
 
     MAP_DATA = {
         "MAGIC_SQUARE": {
             "label": "🔮 Magic Square",
             "floors": {
-                "6F": MS_ADC_SPOTS,
-                "7F": MS_ADC_SPOTS,
-                "8F": MS_ADC_SPOTS,
-                "9F": MS_ADC_SPOTS,
-                "10F": MS_ADC_SPOTS,
+                "6F": MS_LOW_SPOTS,
+                "7F": MS_LOW_SPOTS,
+                "8F": MS_LOW_SPOTS,
+                "9F": MS_MID_SPOTS,
+                "10F": MS_MID_SPOTS,
                 "11F": MS_HIGH_SPOTS,
                 "12F": MS_HIGH_SPOTS
             }
@@ -131,15 +150,8 @@ class Config:
                 "8F": PS_DEFAULT_SPOTS,
                 "9F": PS_DEFAULT_SPOTS,
                 "10F": PS_DEFAULT_SPOTS,
-                "11F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
-                },
-                "12F": {
-                    "SUMMON GOBLIN": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
-                    "SUMMON EVENTS": {"rooms": 1, "emoji": "🌀", "allow_queue": True, "tickets": list((1, 2, 3))},
-                    "BOSS": {"rooms": 1, "emoji": "👑", "allow_queue": True, "tickets": list((1, 2, 3))}
-                }
+                "11F": PS_11F_SPOTS,
+                "12F": PS_12F_SPOTS
             }
         }
     }
@@ -160,18 +172,7 @@ def setup_logger() -> logging.Logger:
         return logger
 
     console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d]: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        log_colors={
-            'DEBUG':    'cyan',
-            'INFO':     'green',
-            'WARNING':  'yellow',
-            'ERROR':    'red',
-            'CRITICAL': 'bold_red',
-        }
-    )
-    console_handler.setFormatter(console_formatter)
+    console_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s]: %(message)s"))
     logger.addHandler(console_handler)
 
     return logger
