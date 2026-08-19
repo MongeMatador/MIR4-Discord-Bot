@@ -3,10 +3,7 @@ import discord
 from aiohttp import web
 from discord.ext import commands
 from config import Config, logger
-from database.connection import DatabaseConnection
-from database.repositories.panel_repository import PanelRepository
-from database.repositories.claim_repository import ClaimRepository
-from database.repositories.log_repository import LogRepository
+from database.connection import DatabaseManager
 from services.panel_service import PanelService
 from services.log_service import LogService
 from services.claim_service import ClaimService
@@ -19,21 +16,14 @@ class MIR4Bot(commands.Bot):
         intents.guilds = True
         super().__init__(command_prefix="!", intents=intents)
 
-        # Injeção de Repositórios
-        self.panel_repo = PanelRepository()
-        self.claim_repo = ClaimRepository()
-        self.log_repo = LogRepository()
-
-        # Injeção de Serviços
-        self.panel_service = PanelService(self, self.panel_repo, self.claim_repo)
-        self.log_service = LogService(self, self.log_repo)
-        self.claim_service = ClaimService(self.claim_repo, self.panel_service, self.log_service)
+        self.panel_service = PanelService(self)
+        self.log_service = LogService(self)
+        self.claim_service = ClaimService(self, self.log_service, self.panel_service)
 
     async def setup_hook(self):
         logger.info("Inicializando infraestrutura de Banco de Dados...")
-        await DatabaseConnection.init_db()
+        await DatabaseManager.initialize()
 
-        # Registra as duas Views Persistentes de cada mapa para suporte contínuo no Render
         self.add_view(MIR4MSPanelPersistentView(self))
         self.add_view(MIR4PSPanelPersistentView(self))
 
@@ -46,7 +36,7 @@ class MIR4Bot(commands.Bot):
         await self.tree.sync()
 
     async def on_ready(self):
-        logger.info(f"🤖 Bot autenticado com sucesso como: {self.user} (ID: {self.user.id})\")")
+        logger.info(f"🤖 Bot autenticado com sucesso como: {self.user} (ID: {self.user.id})")
 
 async def handle_ping(request):
     return web.Response(text="MIR4 Discord Bot - Online 24/7", status=200)
