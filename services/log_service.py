@@ -8,13 +8,12 @@ class LogService:
         self.bot = bot
 
     async def get_log_channel(self, guild_id: int, category: str) -> int:
-        async with DatabaseManager.get_connection() as db:
-            async with db.execute(
-                "SELECT channel_id FROM guild_log_channels WHERE guild_id = ? AND category = ?",
-                (guild_id, category.upper())
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else None
+        async with await DatabaseManager.get_connection() as conn:
+            row = await conn.fetchrow(
+                "SELECT channel_id FROM guild_log_channels WHERE guild_id = $1 AND category = $2",
+                guild_id, category.upper()
+            )
+            return row["channel_id"] if row else None
 
     async def dispatch_claim_log(self, guild_id: int, user: discord.User, map_type: str, floor: str, spot_type: str, room_number: int, action: str, details: str = ""):
         chan_id = await self.get_log_channel(guild_id, map_type)
