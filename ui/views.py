@@ -19,7 +19,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values[0] # CORRIGIDO: Pega a string direto da lista!
+        view.floor = self.values[0] # CORRIGIDO: Pega a string de dentro da lista!
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
         lbl = Config.MAP_DATA[view.map_type]['label']
@@ -40,10 +40,10 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values[0] # CORRIGIDO: Pega a string direto da lista!
+        view.spot = self.values[0] # CORRIGIDO: Pega a string de dentro da lista!
         view.clear_items()
         
-        # PULA QUARTO: Independente do número de quartos, vai direto para Tickets! O banco aloca automaticamente.
+        # PULA QUARTO: Vai direto para os tickets!
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ How many Tickets?"
@@ -67,13 +67,12 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values[0]) # CORRIGIDO: Pega o valor correto!
+        view.tickets = int(self.values[0]) # CORRIGIDO: Converte o valor de dentro da lista!
         view.clear_items()
         
-        # ⚡ FEEDBACK INSTANTÂNEO: Limpa a tela e avisa o usuário no exato milissegundo do clique!
+        # ⚡ FEEDBACK INSTANTÂNEO: Limpa a tela na hora!
         await interaction.response.edit_message(content="⌛ **Processando seu claim no Supabase... Por favor, aguarde.**", view=None)
         
-        # Processa em segundo plano para não dar timeout de interação do Discord
         success, outcome_msg = await view.bot.claim_service.register_claim(
             interaction.guild_id, interaction.user, view.map_type, view.floor, view.spot, view.tickets
         )
