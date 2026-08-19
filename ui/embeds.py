@@ -5,14 +5,29 @@ from config import Config
 
 class MIR4Embeds:
     @staticmethod
+    def parse_datetime(val) -> datetime:
+        """Helper para analisar datas com segurança (suporta tanto strings quanto datetimes nativos)."""
+        if val is None:
+            return None
+        if isinstance(val, datetime):
+            return val
+        if isinstance(val, str):
+            try:
+                return datetime.fromisoformat(val)
+            except ValueError:
+                # Fallback para possíveis formatações com sufixo Z do javascript/API
+                return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        return val
+
+    @staticmethod
     def build_panel_embed(map_type: str) -> discord.Embed:
         if map_type == "MAGIC_SQUARE":
             title = "🔮 PAINEL DE CLAIMS - PRAÇA MÁGICA 🔮"
             color = discord.Color.purple()
             desc = (
-                "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, Room, and Tickets.\n\n"
-                "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot, Sala e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abajo;\n• Seleccione el Piso, Spot, Sala y Tickets."
+                "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
+                "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abajo;\n• Seleccione el Piso, Spot y Tickets."
             )
         else:
             title = "🏔️ PAINEL DE CLAIMS - PICO SECRETO 🏔️"
@@ -57,7 +72,8 @@ class MIR4Embeds:
             evt_config = Config.TRACKABLE_EVENTS[map_type][evt_key]
             last_triggered_at = events_map.get(evt_key)
             if last_triggered_at:
-                dt_trigger = datetime.fromisoformat(last_triggered_at) + timedelta(hours=Config.TIMEZONE_OFFSET)
+                dt_trigger_raw = MIR4Embeds.parse_datetime(last_triggered_at)
+                dt_trigger = dt_trigger_raw + timedelta(hours=Config.TIMEZONE_OFFSET)
                 time_display = f"**{dt_trigger.strftime('%H:%M')}**"
             else:
                 time_display = "--:--"
@@ -81,11 +97,17 @@ class MIR4Embeds:
                 room_text = f"🔹 Sala {r}: " if max_rooms > 1 else ""
                 if r in claims_by_room:
                     c = claims_by_room[r]
-                    end_time_server = datetime.fromisoformat(c["ends_at"]) + timedelta(hours=Config.TIMEZONE_OFFSET)
+                    
+                    # Analisa as datas vindas do PostgreSQL de forma segura e flexível
+                    ends_at_dt = MIR4Embeds.parse_datetime(c["ends_at"])
+                    started_at_dt = MIR4Embeds.parse_datetime(c["started_at"])
+                    
+                    end_time_server = ends_at_dt + timedelta(hours=Config.TIMEZONE_OFFSET)
+                    
                     if c["status"] == "VACANT_REMAINING":
                         field_value += f"{room_text}🟢 **Tempo Restante** | Até {end_time_server.strftime('%H:%M')}\n"
                     else:
-                        start_time_server = datetime.fromisoformat(c["started_at"]) + timedelta(hours=Config.TIMEZONE_OFFSET)
+                        start_time_server = started_at_dt + timedelta(hours=Config.TIMEZONE_OFFSET)
                         field_value += f"{room_text}🔴 <@{c['user_id']}> ({start_time_server.strftime('%H:%M')} ~ {end_time_server.strftime('%H:%M')})\n"
                 else:
                     field_value += f"{room_text}🟢 Disponível\n"
