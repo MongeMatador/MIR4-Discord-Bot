@@ -1,165 +1,175 @@
 import discord
-from discord.ext import commands, tasks
-from discord import app_commands
 from datetime import datetime, timedelta
-from config import Config, logger
 from database.connection import DatabaseManager
-from services.claim_service import ClaimService
+from config import Config, logger
 
-class ClaimCog(commands.Cog):
-    def __init__(self, bot):
+class ClaimService:
+    def __init__(self, bot, log_service, panel_service):
         self.bot = bot
-        self.dashboard_updater.start()
+        self.log_service = log_service
+        self.panel_service = panel_service
 
-    def cog_unload(self):
-        self.dashboard_updater.cancel()
-
-    def calculate_ticker_line(self, map_type: str, floor: str) -> str:
-        now_server = datetime.utcnow() + timedelta(hours=Config.TIMEZONE_OFFSET)
-        map_schedule = Config.FIXED_BOSS_HOURS.get(map_type, {})
-        
-        if floor in map_schedule:
-            schedule = map_schedule[floor]
-        else:
-            schedule = map_schedule.get("DEFAULT", {})
-
-        if not schedule:
-            return ""
-
-        ticker_lines = []
-        for boss_key, target_times in schedule.items():
-            if not target_times:
-                continue
-            
-            next_target = None
-            for time_str in target_times:
-                h, m = map(int, time_str.split(":"))
-                target_dt = now_server.replace(hour=h, minute=m, second=0, microsecond=0)
-                if target_dt > now_server:
-                    next_target = target_dt
-                    break
-            
-            if not next_target:
-                h, m = map(int, target_times.split(":"))
-                next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
-
-            diff = next_target - now_server
-            total_mins = int(diff.total_seconds() / 60)
-            hours_rem = total_mins // 60
-            mins_rem = total_mins % 60
-            rem_str = f"{hours_rem}h {mins_rem}m" if hours_rem > 0 else f"{mins_rem}m"
-
-            emoji = "👑" if boss_key == "LEADER_3" else "⚡" if boss_key == "FURY" else "🔥" if boss_key == "FRENZY" else "🕒"
-            label = "LÍDER 3" if boss_key == "LEADER_3" else boss_key
-            ticker_lines.append(f"{emoji} **[{label}]** Respawn às {next_target.strftime('%H:%M')} (Falta **{rem_str}**)")
-
-        return "\n".join(ticker_lines)
-
-    async def check_and_process_queue(self, guild_id: int, map_type: str, floor: str, spot_type: str, room_number: int):
-        spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
-        if not spot_info.get("allow_queue", True):
-            await self.bot.panel_service.update_floor_dashboard(guild_id, map_type, floor)
-            return
-
-        next_user = await ClaimService.get_next_in_queue(map_type, floor, spot_type)
-        if next_user:
-            await ClaimService.remove_from_queue(next_user['id'])
-            await ClaimService.create_claim(guild_id, next_user['user_id'], next_user['username'], map_type, floor, spot_type, room_number, next_user['tickets'])
-            try:
-                discord_user = await self.bot.fetch_user(next_user['user_id'])
-                if discord_user:
-                    await self.bot.log_service.dispatch_claim_log(guild_id, discord_user, map_type, floor, spot_type, room_number, "CLAIM", f"Fila ativada: {next_user['tickets']} Tickets")
-                    await discord_user.send(f"⚔️ **Sua vez chegou!** Você foi alocado automaticamente no spot `{floor} - {spot_type}` (Sala {room_number}).")
-            except:
-                pass
-        await self.bot.panel_service.update_floor_dashboard(guild_id, map_type, floor)
-
-    @tasks.loop(seconds=15)
-    async def dashboard_updater(self):
-        now = datetime.utcnow()
-        expired_claims = []
+    @staticmethod
+    async def get_floor_events(map_type: str, floor: str) -> list:
         async with await DatabaseManager.get_connection() as conn:
             rows = await conn.fetch(
-                "SELECT * FROM claims WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
-                now
+                "SELECT * FROM floor_events WHERE map_type = $1 AND floor = $2",
+                map_type, floor
             )
-            expired_claims = [dict(r) for r in rows]
+            return [dict(r) for r in rows]
 
-            if expired_claims:
-                await conn.execute(
-                    "UPDATE claims SET status = 'EXPIRED' WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
-                    now
+    @staticmethod
+    async def get_queue_list(map_type: str, floor: str, spot_type: str) -> list:
+        async with await DatabaseManager.get_connection() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM spot_queues WHERE map_type = $1 AND floor = $2 AND spot_type = $3 ORDER BY queued_at ASC",
+                map_type, floor, spot_type
+            )
+            return [dict(r) for r in rows]
+
+    @staticmethod
+    async def get_next_in_queue(map_type: str, floor: str, spot_type: str) -> dict:
+        async with await DatabaseManager.get_connection() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM spot_queues WHERE map_type = $1 AND floor = $2 AND spot_type = $3 ORDER BY queued_at ASC LIMIT 1",
+                map_type, floor, spot_type
+            )
+            return dict(row) if row else None
+
+    @staticmethod
+    async def remove_from_queue(queue_id: int):
+        async with await DatabaseManager.get_connection() as conn:
+            await conn.execute("DELETE FROM spot_queues WHERE id = $1", queue_id)
+
+    @staticmethod
+    async def create_claim(guild_id: int, user_id: int, username: str, map_type: str, floor: str, spot_type: str, room_number: int, tickets: int):
+        now = datetime.utcnow()
+        ends = now + timedelta(minutes=tickets * 30)
+        async with await DatabaseManager.get_connection() as conn:
+            await conn.execute("""
+                INSERT INTO claims (guild_id, map_type, floor, spot_type, room_number, status, user_id, username, started_at, ends_at, tickets)
+                VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10)
+            """, guild_id, map_type, floor, spot_type, room_number, user_id, username, now, ends, tickets)
+
+    async def register_claim(self, guild_id: int, user: discord.User, map_type: str, floor: str, spot_type: str, room_number: int, tickets: int) -> tuple:
+        async with await DatabaseManager.get_connection() as conn:
+            # Sanitiza os slots órfãos
+            row = await conn.fetchval(
+                "SELECT COUNT(*) FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4",
+                guild_id, map_type, floor, spot_type
+            )
+            q_size = row if row else 0
+            
+            if q_size == 0:
+                await conn.execute("""
+                    UPDATE claims SET status = 'CANCELLED'
+                    WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4 AND room_number = $5 AND status = 'VACANT_REMAINING'
+                """, guild_id, map_type, floor, spot_type, room_number)
+
+            # Validação Multi-Contas por mapa
+            active = await conn.fetchrow(
+                "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND user_id = $3 AND status = 'ACTIVE'",
+                guild_id, map_type, user.id
+            )
+            if active:
+                return False, f"❌ **Falhou!** Você já possui uma sala ativa em **{map_type.replace('_', ' ')}**!"
+
+            # Busca se o spot desejado já está ocupado
+            occupied = await conn.fetchrow("""
+                SELECT * FROM claims
+                WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = $4 AND room_number = $5 AND status IN ('ACTIVE', 'VACANT_REMAINING')
+            """, guild_id, map_type, floor, spot_type, room_number)
+
+            if occupied:
+                if occupied["status"] == "VACANT_REMAINING":
+                    await conn.execute(
+                        "UPDATE claims SET status = 'ACTIVE', user_id = $1, username = $2 WHERE id = $3",
+                        user.id, user.display_name, occupied["id"]
+                    )
+                    await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
+                    await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "CLAIM_VACANT", "Assumiu tempo restante")
+                    return True, f"✅ **Sucesso!** Você assumiu o tempo restante de `{floor} - {spot_type}` (Sala {room_number})."
+
+                spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
+                if spot_info.get("allow_queue", True):
+                    if q_size >= Config.MAX_QUEUE_SIZE:
+                        return False, f"❌ **Fila Cheia!** O limite de {Config.MAX_QUEUE_SIZE} pessoas na fila foi atingido."
+
+                    await conn.execute("""
+                        INSERT INTO spot_queues (guild_id, map_type, floor, spot_type, user_id, username, tickets)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    """, guild_id, map_type, floor, spot_type, user.id, user.display_name, tickets)
+                    
+                    await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
+                    return True, f"👥 **Fila de Espera!** Você entrou na fila para o spot **{spot_type}**."
+                else:
+                    return False, "❌ **Ocupado!** Fila de espera desabilitada para eventos rápidos Frenzy/Fury."
+
+            # Se livre, cria a claim normalmente
+            now = datetime.utcnow()
+            ends = now + timedelta(minutes=tickets * 30)
+            await conn.execute("""
+                INSERT INTO claims (guild_id, map_type, floor, spot_type, room_number, status, user_id, username, started_at, ends_at, tickets)
+                VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10)
+            """, guild_id, map_type, floor, spot_type, room_number, user.id, user.display_name, now, ends, tickets)
+            
+        await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
+        await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "CLAIM", f"Tickets: {tickets} ({tickets * 30}m)")
+        return True, f"✅ **Sucesso!** Spot `{floor} - {spot_type}` (Sala {room_number}) reservado."
+
+    async def release_claim(self, guild_id: int, user: discord.User, map_type: str) -> str:
+        async with DatabaseManager.get_connection() as db:
+            async with await DatabaseManager.get_connection() as conn:
+                claim = await conn.fetchrow(
+                    "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND user_id = $3 AND status = 'ACTIVE'",
+                    guild_id, map_type, user.id
                 )
 
-        for claim in expired_claims:
-            guild_id = claim["guild_id"]
-            try:
-                fake_user = type('User', (object,), {'mention': f"<@{claim['user_id']}>", 'name': claim['username'], 'display_name': claim['username']})
-                await self.bot.log_service.dispatch_claim_log(guild_id, fake_user, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'], "EXPIRED")
-            except:
-                pass
-            await self.check_and_process_queue(guild_id, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'])
+                if not claim:
+                    in_q = await conn.fetchrow(
+                        "SELECT * FROM spot_queues WHERE guild_id = $1 AND map_type = $2 AND user_id = $3",
+                        guild_id, map_type, user.id
+                    )
+                    if in_q:
+                        await conn.execute("DELETE FROM spot_queues WHERE id = $1", in_q["id"])
+                        await self.panel_service.update_floor_dashboard(guild_id, map_type, in_q["floor"])
+                        return f"✅ Você saiu da fila de espera do spot **{in_q['spot_type']}**."
+                    return "⚠️ Você não possui claims ativos ou posições em filas."
 
-        active_dashboards = []
+                floor = claim["floor"]
+                spot_type = claim["spot_type"]
+                room_number = claim["room_number"]
+
+                queue_list = await self.get_queue_list(map_type, floor, spot_type)
+                if queue_list:
+                    await conn.execute("UPDATE claims SET status = 'VACANT_REMAINING' WHERE id = $1", claim["id"])
+                    msg = f"✅ Você liberou o spot **{spot_type}**. Ele virou **Tempo Restante** no placar!"
+                else:
+                    await conn.execute("UPDATE claims SET status = 'CANCELLED' WHERE id = $1", claim["id"])
+                    msg = f"✅ Você desocupou o spot **{spot_type}**!"
+
+        await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
+        await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, room_number, "RELEASE")
+        return msg
+
+    async def trigger_floor_event(self, guild_id: int, user: discord.User, map_type: str, floor: str, event_key: str) -> tuple:
         async with await DatabaseManager.get_connection() as conn:
-            rows = await conn.fetch("SELECT guild_id, map_type, floor FROM floor_dashboards")
-            active_dashboards = [dict(r) for r in rows]
-
-        for d in active_dashboards:
-            try:
-                await self.bot.panel_service.update_floor_dashboard(d["guild_id"], d["map_type"], d["floor"])
-            except Exception as e:
-                logger.error(f"Erro ao atualizar dashboard {d['map_type']} {d['floor']}: {e}")
-
-    @dashboard_updater.before_loop
-    async def before_dashboard_updater(self):
-        await self.bot.wait_until_ready()
-
-    @app_commands.command(
-        name="setup_painel",
-        description="Configura um painel de claims (canal de cliques) ou placar de andar (canal de placar)."
-    )
-    @app_commands.describe(
-        map_type="Selecione o mapa para este painel",
-        floor="Selecione o andar se for criar um placar de andar, ou deixe em branco para o painel de claims principal"
-    )
-    @app_commands.choices(
-        map_type=[
-            app_commands.Choice(name="🔮 Praça Mágica", value="MAGIC_SQUARE"),
-            app_commands.Choice(name="🏔️ Pico Secreto", value="SECRET_PEAK")
-        ],
-        floor=[
-            app_commands.Choice(name="6F", value="6F"),
-            app_commands.Choice(name="7F", value="7F"),
-            app_commands.Choice(name="8F", value="8F"),
-            app_commands.Choice(name="9F", value="9F"),
-            app_commands.Choice(name="10F", value="10F"),
-            app_commands.Choice(name="11F", value="11F"),
-            app_commands.Choice(name="12F", value="12F")
-        ]
-    )
-    @commands.has_permissions(administrator=True)
-    async def setup_painel(self, interaction: discord.Interaction, map_type: str, floor: str = None):
-        await interaction.response.defer(ephemeral=True)
-        floor_key = floor if floor else ""
-        
-        if floor_key:
-            await self.bot.panel_service.update_floor_dashboard(
-                guild_id=interaction.guild_id,
-                map_type=map_type,
-                floor=floor_key,
-                target_channel=interaction.channel
+            boss_owner = await conn.fetchrow(
+                "SELECT * FROM claims WHERE guild_id = $1 AND map_type = $2 AND floor = $3 AND spot_type = 'BOSS' AND status = 'ACTIVE'",
+                guild_id, map_type, floor
             )
-            msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
-        else:
-            await self.bot.panel_service.update_static_panel(
-                guild_id=interaction.guild_id,
-                map_type=map_type,
-                target_channel=interaction.channel
-            )
-            msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
-            
-        await interaction.followup.send(msg, ephemeral=True)
 
-async def setup(bot):
-    await bot.add_cog(ClaimCog(bot))
+            if boss_owner and boss_owner["user_id"] != user.id:
+                return False, f"⚠️ **Acesso Negado!** Somente o dono legítimo do BOSS (<@{boss_owner['user_id']}>) pode gerenciar as rotações deste andar."
+
+            now = datetime.utcnow()
+            await conn.execute("""
+                INSERT INTO floor_events (guild_id, map_type, floor, event_name, last_triggered_at, last_triggered_by)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT(guild_id, map_type, floor, event_name) DO UPDATE SET
+                    last_triggered_at = EXCLUDED.last_triggered_at,
+                    last_triggered_by = EXCLUDED.last_triggered_by;
+            """, guild_id, map_type, floor, event_key, now, user.id)
+
+        await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
+        return True, f"✅ Rotação de **{event_key}** updated para as {now.strftime('%H:%M')}!"
