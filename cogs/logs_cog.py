@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from database.connection import DatabaseManager
 
 class LogsCog(commands.Cog):
     def __init__(self, bot):
@@ -8,30 +9,32 @@ class LogsCog(commands.Cog):
 
     @app_commands.command(name="set_log_channel", description="Configura o canal de logs para Praça e Pico Secreto.")
     @app_commands.describe(
-        categoria="Categoria de logs",
+        categoria="Categoria de logs (mapa correspondente)",
         canal="Canal de texto de destino"
+    )
+    @app_commands.choices(
+        categoria=[
+            app_commands.Choice(name="🔮 Praça Mágica", value="MAGIC_SQUARE"),
+            app_commands.Choice(name="🏔️ Pico Secreto", value="SECRET_PEAK")
+        ]
     )
     @commands.has_permissions(administrator=True)
     async def set_log_channel(self, interaction: discord.Interaction, categoria: str, canal: discord.TextChannel):
-        # DEFER IMEDIATO PARA RESPOSTA SEGURA
         await interaction.response.defer(ephemeral=True)
+        async with DatabaseManager.get_connection() as db:
+            await db.execute("""
+                INSERT INTO guild_log_channels (guild_id, category, channel_id, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(guild_id, category) DO UPDATE SET channel_id = excluded.channel_id, updated_at = CURRENT_TIMESTAMP;
+            """, (interaction.guild_id, categoria.upper(), canal.id))
+            await db.commit()
 
-        success = await self.bot.log_repo.set_log_channel(interaction.guild_id, categoria, canal.id)
-
-        if success:
-            embed = discord.Embed(
-                title="✅ Canal de Logs Configurado",
-                description=f"Os logs da categoria **{categoria.upper()}** serão entregues em {canal.mention}.",
-                color=discord.Color.brand_green()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        else:
-            await interaction.followup.send("❌ Erro ao salvar no banco de dados. Tente novamente.", ephemeral=True)
-
-    @set_log_channel.autocomplete('categoria')
-    async def category_autocomplete(self, interaction: discord.Interaction, current: str):
-        categories = ["MAGIC_SQUARE", "SECRET_PEAK", "CLAIMS"]
-        return [app_commands.Choice(name=cat, value=cat) for cat in categories if current.lower() in cat.lower()]
+        embed = discord.Embed(
+            title="✅ Canal de Logs Configurado",
+            description=f"Os logs de auditoria de **{categoria}** serão entregues em {canal.mention}.",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(LogsCog(bot))
