@@ -10,8 +10,6 @@ class ClaimWizardView(discord.ui.View):
         self.spot = None
         self.room_number = 1
         self.tickets = 1
-
-        # Começa adicionando diretamente o seletor de Andares com base no mapa correto (Pula a etapa de escolher mapa!)
         self.add_item(FloorSelect(self.map_type))
 
 class FloorSelect(discord.ui.Select):
@@ -22,11 +20,9 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values # FIX: Pegando a string de dentro da lista
-        
+        view.floor = self.values[0]
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
-        
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}**\n➡️ Now select the Spot:"
         await interaction.response.edit_message(content=msg, view=view)
@@ -45,14 +41,11 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values # FIX: Pegando a string de dentro da lista
-        
+        view.spot = self.values[0]
         spots_info = Config.MAP_DATA[view.map_type]["floors"][view.floor][view.spot]
         max_rooms = spots_info.get("rooms", 1)
-        
         view.clear_items()
         lbl = Config.MAP_DATA[view.map_type]['label']
-        
         if max_rooms > 1:
             view.add_item(RoomSelect(max_rooms))
             msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ Select the Room (Chamber Instance):"
@@ -70,11 +63,9 @@ class RoomSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.room_number = int(self.values) # FIX: Pegando a string de dentro da lista
-        
+        view.room_number = int(self.values[0])
         view.clear_items()
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
-        
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}** | Room: **{view.room_number}**\n➡️ How many Tickets?"
         await interaction.response.edit_message(content=msg, view=view)
@@ -82,46 +73,30 @@ class RoomSelect(discord.ui.Select):
 class TicketSelect(discord.ui.Select):
     def __init__(self, map_type, floor, spot):
         spots_info = Config.MAP_DATA[map_type]["floors"][floor][spot]
-        allowed_tickets = spots_info.get("tickets", [1, 2, 4])
-        
-        # Formatação profissional de tickets conforme tempo (30m por ticket)
+        allowed_tickets = spots_info.get("tickets", [1, 3, 6])
         ticket_labels = {
             1: "1 Ticket (30m)",
             2: "2 Tickets (1h)",
             3: "3 Tickets (1h30)",
             6: "6 Tickets (3h)"
         }
-        
         options = []
         for t in allowed_tickets:
             label = ticket_labels.get(t, f"{t} Ticket(s)")
             options.append(discord.SelectOption(label=label, value=str(t)))
-            
         super().__init__(placeholder="Select Tickets / Quantidade de Tickets", options=options, row=0)
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values) # FIX: Pegando a string de dentro da lista
-        
+        view.tickets = int(self.values[0])
         view.clear_items()
         await interaction.response.defer(ephemeral=True)
-        
-        map_label = "Magic Square" if view.map_type == "MAGIC_SQUARE" else "Secret Peak"
-        spot_string = f"{map_label} {view.floor} - {view.spot} - Room {view.room_number} ({view.tickets} Tk)"
-        
-        success = await view.bot.claim_service.register_claim(
-            interaction.guild_id, interaction.user, spot_string
+        success, outcome_msg = await view.bot.claim_service.register_claim(
+            interaction.guild_id, interaction.user, view.map_type, view.floor, view.spot, view.room_number, view.tickets
         )
-        
-        if success:
-            msg = f"✅ **Claim Successful!**\nYou successfully claimed: **{spot_string}**"
-            await interaction.followup.send(msg, ephemeral=True)
-        else:
-            msg = f"❌ **Claim Failed!**\nThe spot **{spot_string}** is already occupied or you already have an active claim!"
-            await interaction.followup.send(msg, ephemeral=True)
+        await interaction.followup.send(outcome_msg, ephemeral=True)
 
 class MIR4MSPanelPersistentView(discord.ui.View):
-    """Painel de claims exclusivo para a Praça Mágica."""
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
@@ -134,22 +109,10 @@ class MIR4MSPanelPersistentView(discord.ui.View):
     @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:MAGIC_SQUARE")
     async def unclaim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        claims = await self.bot.claim_repo.get_all_claims(guild_id)
-        user_claims = [c for c in claims if c["user_id"] == interaction.user.id and "Magic Square" in c["spot_name"]]
-        
-        if not user_claims:
-            msg = "⚠️ You do not have any active spots claimed on Magic Square."
-            return await interaction.followup.send(msg, ephemeral=True)
-
-        for c in user_claims:
-            await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
-
-        msg = "✅ Your active claims on Magic Square have been released successfully!"
-        await interaction.followup.send(msg, ephemeral=True)
+        outcome_msg = await self.bot.claim_service.release_claim(interaction.guild_id, interaction.user, "MAGIC_SQUARE")
+        await interaction.followup.send(outcome_msg, ephemeral=True)
 
 class MIR4PSPanelPersistentView(discord.ui.View):
-    """Painel de claims exclusivo para o Pico Secreto."""
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
@@ -162,16 +125,36 @@ class MIR4PSPanelPersistentView(discord.ui.View):
     @discord.ui.button(label="Cancel Claim / Fila", style=discord.ButtonStyle.red, custom_id="mir4:btn_unclaim:SECRET_PEAK")
     async def unclaim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        claims = await self.bot.claim_repo.get_all_claims(guild_id)
-        user_claims = [c for c in claims if c["user_id"] == interaction.user.id and "Secret Peak" in c["spot_name"]]
-        
-        if not user_claims:
-            msg = "⚠️ You do not have any active spots claimed on Secret Peak."
-            return await interaction.followup.send(msg, ephemeral=True)
+        outcome_msg = await self.bot.claim_service.release_claim(interaction.guild_id, interaction.user, "SECRET_PEAK")
+        await interaction.followup.send(outcome_msg, ephemeral=True)
 
-        for c in user_claims:
-            await self.bot.claim_service.release_claim(guild_id, interaction.user, c["spot_name"])
+class FloorEventButtonsView(discord.ui.View):
+    def __init__(self, bot, map_type: str, floor: str):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.map_type = map_type
+        self.floor = floor
+        valid_events = Config.get_valid_events_for_floor(self.map_type, self.floor)
+        for evt in valid_events:
+            evt_config = Config.TRACKABLE_EVENTS[self.map_type][evt]
+            self.add_item(FloorEventButton(self.bot, self.map_type, self.floor, evt, evt_config))
 
-        msg = "✅ Your active claims on Secret Peak have been released successfully!"
-        await interaction.followup.send(msg, ephemeral=True)
+class FloorEventButton(discord.ui.Button):
+    def __init__(self, bot, map_type: str, floor: str, event_key: str, config: dict):
+        self.bot = bot
+        self.map_type = map_type
+        self.floor = floor
+        self.event_key = event_key
+        super().__init__(
+            label=config["label"],
+            emoji=config["emoji"],
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"mir4:evt:{map_type}:{floor}:{event_key}"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        success, outcome_msg = await self.bot.claim_service.trigger_floor_event(
+            interaction.guild_id, interaction.user, self.map_type, self.floor, self.event_key
+        )
+        await interaction.followup.send(outcome_msg, ephemeral=True)
