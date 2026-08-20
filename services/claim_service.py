@@ -87,7 +87,7 @@ class ClaimService:
                 if vacant_rooms:
                     # Aloca no quarto com o MENOR TEMPO restante (ends_at mais próximo)
                     vacant_rooms.sort(key=lambda x: x["ends_at"])
-                    target_claim = vacant_rooms[0] # CORRIGIDO: Pega o primeiro dicionário da lista! ✅
+                    target_claim = vacant_rooms # EXTRAÇÃO DO PRIMEIRO DICIONÁRIO DA LISTA ✅
                     assigned_room = target_claim["room_number"]
                     
                     # Consome o tempo restante
@@ -173,7 +173,11 @@ class ClaimService:
                 guild_id, map_type, floor
             )
 
-            if boss_owner and boss_owner["user_id"] != user.id:
+            # TRAVA DE AUTORIDADE PARA EVENTOS RÍGIDA E SEGURA ✅
+            if not boss_owner:
+                return False, "⚠️ **Acesso Negado!** Somente o jogador que reservou o **BOSS** deste andar no placar pode marcar as rotações."
+
+            if boss_owner["user_id"] != user.id:
                 return False, f"⚠️ **Acesso Negado!** Somente o dono legítimo do BOSS (<@{boss_owner['user_id']}>) pode gerenciar as rotações deste andar."
 
             now = datetime.utcnow()
