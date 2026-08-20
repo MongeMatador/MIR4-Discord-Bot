@@ -27,7 +27,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abajo;\n• Seleccione el Piso, Spot y Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
             )
         else:
             title = "🏔️ PAINEL DE CLAIMS - PICO SECRETO 🏔️"
@@ -35,7 +35,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abajo;\n• Seleccione el Piso, Spot y Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
             )
         
         embed = discord.Embed(title=title, description=desc, color=color, timestamp=datetime.utcnow())
@@ -45,6 +45,7 @@ class MIR4Embeds:
             inline=False
         )
         
+        # MANTIDO ESTREITAMENTE NO PAINEL DE CLIQUE DO CANAL DE CLAIMS PRINCIPAL! ✅
         if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
             embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
             
@@ -98,7 +99,6 @@ class MIR4Embeds:
                 if r in claims_by_room:
                     c = claims_by_room[r]
                     
-                    # Analisa as datas vindas do PostgreSQL de forma segura e flexível
                     ends_at_dt = MIR4Embeds.parse_datetime(c["ends_at"])
                     started_at_dt = MIR4Embeds.parse_datetime(c["started_at"])
                     
@@ -114,8 +114,8 @@ class MIR4Embeds:
 
             embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=False)
 
-        if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
-            embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
+        # 🚀 AQUI ESTÁ A CORREÇÃO SOLICITADA: embed.set_image(...) FOI TOTALMENTE REMOVIDO DA SALA/PLACAR! ✅
+        # Dessa forma, os canais de andares ficam curtos e minimalistas, sem repetição de imagens!
 
         embed.set_footer(text="MIR4 Real-Time Tracker")
         return embed
