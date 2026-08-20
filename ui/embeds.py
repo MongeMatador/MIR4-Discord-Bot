@@ -45,7 +45,7 @@ class MIR4Embeds:
             inline=False
         )
         
-        # MANTIDO ESTREITAMENTE NO PAINEL DE CLIQUE DO CANAL DE CLAIMS PRINCIPAL! ✅
+        # MANTIDO EXCLUSIVAMENTE NO CANAL DE CLIQUES/CLAIMS PRINCIPAL! ✅
         if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
             embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
             
@@ -114,8 +114,7 @@ class MIR4Embeds:
 
             embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=False)
 
-        # 🚀 AQUI ESTÁ A CORREÇÃO SOLICITADA: embed.set_image(...) FOI TOTALMENTE REMOVIDO DA SALA/PLACAR! ✅
-        # Dessa forma, os canais de andares ficam curtos e minimalistas, sem repetição de imagens!
+        # 🚀 MAPA REMOVIDO DAQUI POR COMPLETO! ✅ Placares públicos sem poluição visual.
 
         embed.set_footer(text="MIR4 Real-Time Tracker")
         return embed
