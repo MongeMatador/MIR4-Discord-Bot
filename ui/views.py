@@ -19,7 +19,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values[0] # EXTRAÇÃO DO PRIMEIRO ELEMENTO ✅
+        view.floor = self.values[0] # CORRIGIDO: Pega a string de dentro da lista! ✅
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
         lbl = Config.MAP_DATA[view.map_type]['label']
@@ -40,10 +40,8 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values[0] # EXTRAÇÃO DO PRIMEIRO ELEMENTO ✅
+        view.spot = self.values[0] # CORRIGIDO: Pega a string de dentro da lista! ✅
         view.clear_items()
-        
-        # PULA QUARTO: Direto para a seleção de Tickets! O banco aloca de forma automática
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ How many Tickets?"
@@ -52,7 +50,7 @@ class SpotSelect(discord.ui.Select):
 class TicketSelect(discord.ui.Select):
     def __init__(self, map_type, floor, spot):
         spots_info = Config.MAP_DATA[map_type]["floors"][floor][spot]
-        allowed_tickets = spots_info.get("tickets") or [1, 2, 3] # SEGURO ✅
+        allowed_tickets = spots_info.get("tickets") or [1, 3, 6] # VALOR PADRÃO SEGURO ✅
         ticket_labels = {
             1: "1 Ticket (30m)",
             2: "2 Tickets (1h)",
@@ -67,11 +65,11 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values[0]) # EXTRAÇÃO DO PRIMEIRO ELEMENTO E CONVERSÃO ✅
+        view.tickets = int(self.values[0]) # CORRIGIDO: Extrai a string antes de converter para int! ✅
         view.clear_items()
         
-        # ⚡ FEEDBACK INSTANTÂNEO: Altera a mensagem na hora, eliminando travamento visual!
-        await interaction.response.edit_message(content="⌛ **Processando seu claim no Supabase... Por favor, aguarde.**", view=None)
+        # ⚡ FEEDBACK INSTANTÂNEO SEM CITAR BANCO DE DADOS (SUPABASE) ✅
+        await interaction.response.edit_message(content="⌛ **Processando... Por favor, aguarde.**", view=None)
         
         success, outcome_msg = await view.bot.claim_service.register_claim(
             interaction.guild_id, interaction.user, view.map_type, view.floor, view.spot, view.tickets
