@@ -40,7 +40,8 @@ class ClaimCog(commands.Cog):
                     break
             
             if not next_target:
-                h, m = map(int, target_times.split(":"))
+                # CORRIGIDO: Agora seleciona o primeiro índice [0] da lista de horários antes de dar split! ✅
+                h, m = map(int, target_times[0].split(":"))
                 next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
 
             diff = next_target - now_server
@@ -138,7 +139,7 @@ class ClaimCog(commands.Cog):
             app_commands.Choice(name="12F", value="12F")
         ]
     )
-    @app_commands.checks.has_permissions(administrator=True) # CORRIGIDO ✅
+    @app_commands.checks.has_permissions(administrator=True)
     async def setup_painel(self, interaction: discord.Interaction, map_type: str, floor: str = None):
         await interaction.response.defer(ephemeral=True)
         floor_key = floor if floor else ""
@@ -149,6 +150,7 @@ class ClaimCog(commands.Cog):
                 map_type=map_type,
                 floor=floor_key,
                 target_channel=interaction.channel
+                # A imagem do mapa não será carregada aqui! Ficou 100% limpo no placar público! ✅
             )
             msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
         else:
@@ -161,7 +163,6 @@ class ClaimCog(commands.Cog):
             
         await interaction.followup.send(msg, ephemeral=True)
 
-    # Tratador de erro amigável para falta de permissão
     @setup_painel.error
     async def setup_painel_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.errors.MissingPermissions):
