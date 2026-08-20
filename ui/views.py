@@ -19,7 +19,7 @@ class FloorSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.floor = self.values[0] # EXTRAÇÃO DO ELEMENTO REAL ✅
+        view.floor = self.values # EXTRAÇÃO CORRETA DA STRING ✅
         view.clear_items()
         view.add_item(SpotSelect(view.map_type, view.floor))
         lbl = Config.MAP_DATA[view.map_type]['label']
@@ -40,8 +40,10 @@ class SpotSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.spot = self.values[0] # EXTRAÇÃO DO ELEMENTO REAL ✅
+        view.spot = self.values # EXTRAÇÃO CORRETA DA STRING ✅
         view.clear_items()
+        
+        # PULA QUARTO: Direto para a seleção de Tickets! O banco aloca de forma automática
         view.add_item(TicketSelect(view.map_type, view.floor, view.spot))
         lbl = Config.MAP_DATA[view.map_type]['label']
         msg = f"🗺️ Map: **{lbl}** | Floor: **{view.floor}** | Spot: **{view.spot}**\n➡️ How many Tickets?"
@@ -50,7 +52,7 @@ class SpotSelect(discord.ui.Select):
 class TicketSelect(discord.ui.Select):
     def __init__(self, map_type, floor, spot):
         spots_info = Config.MAP_DATA[map_type]["floors"][floor][spot]
-        allowed_tickets = spots_info.get("tickets") or [1, 2, 3, 6] # CORRIGIDO VALOR PADRÃO ✅
+        allowed_tickets = spots_info.get("tickets") or [1-3]
         ticket_labels = {
             1: "1 Ticket (30m)",
             2: "2 Tickets (1h)",
@@ -65,7 +67,7 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view: ClaimWizardView = self.view
-        view.tickets = int(self.values[0]) # EXTRAÇÃO DO ELEMENTO REAL ✅
+        view.tickets = int(self.values) # EXTRAÇÃO E CONVERSÃO CORRETA DA STRING ✅
         view.clear_items()
         
         # ⚡ FEEDBACK INSTANTÂNEO
