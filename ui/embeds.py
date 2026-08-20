@@ -27,7 +27,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot e Tickets."
             )
         else:
             title = "🏔️ PAINEL DE CLAIMS - PICO SECRETO 🏔️"
@@ -35,7 +35,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot e Tickets."
             )
         
         embed = discord.Embed(title=title, description=desc, color=color, timestamp=datetime.utcnow())
@@ -45,7 +45,7 @@ class MIR4Embeds:
             inline=False
         )
         
-        # MANTIDO EXCLUSIVAMENTE NO CANAL DE CLIQUES/CLAIMS PRINCIPAL! ✅
+        # MANTIDO ESTREITAMENTE NO PAINEL DE CLIQUE DO CANAL DE CLAIMS PRINCIPAL! ✅
         if map_type == "SECRET_PEAK" and getattr(Config, "SECRET_PEAK_MAP_URL", None):
             embed.set_image(url=Config.SECRET_PEAK_MAP_URL)
             
@@ -112,9 +112,9 @@ class MIR4Embeds:
                 else:
                     field_value += f"{room_text}🟢 Disponível\n"
 
-            embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=False)
-
-        # 🚀 MAPA REMOVIDO DAQUI POR COMPLETO! ✅ Placares públicos sem poluição visual.
+            # GRID SEGURO DE 3 COLUNAS PARA PICO SECRETO ✅
+            use_inline = map_type == "SECRET_PEAK" and spot_name not in ["SUMMON GOBLIN", "SUMMON EVENTS", "BOSS", "SUMMON"]
+            embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=use_inline)
 
         embed.set_footer(text="MIR4 Real-Time Tracker")
         return embed
