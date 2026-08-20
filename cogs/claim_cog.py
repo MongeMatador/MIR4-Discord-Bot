@@ -40,7 +40,7 @@ class ClaimCog(commands.Cog):
                     break
             
             if not next_target:
-                # CORRIGIDO: Seleciona o índice 0 da lista de horários antes de dar split! ✅
+                # CORRIGIDO: Agora seleciona o primeiro índice da lista de horários antes de dar split! ✅
                 h, m = map(int, target_times[0].split(":"))
                 next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
 
@@ -144,33 +144,23 @@ class ClaimCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         floor_key = floor if floor else ""
         
-        try:
-            if floor_key:
-                await self.bot.panel_service.update_floor_dashboard(
-                    guild_id=interaction.guild_id,
-                    map_type=map_type,
-                    floor=floor_key,
-                    target_channel=interaction.channel
-                )
-                msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
-            else:
-                await self.bot.panel_service.update_static_panel(
-                    guild_id=interaction.guild_id,
-                    map_type=map_type,
-                    target_channel=interaction.channel
-                )
-                msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
-                
-            await interaction.followup.send(msg, ephemeral=True)
-        except discord.Forbidden:
-            await interaction.followup.send(
-                "❌ **Erro de Permissão!** O bot não possui as permissões necessárias neste canal para criar posts ou reações.\n"
-                "Certifique-se de que ele tenha as permissões 'Enviar Mensagens', 'Inserir Links' e 'Adicionar Reações' nas configurações do canal.",
-                ephemeral=True
+        if floor_key:
+            await self.bot.panel_service.update_floor_dashboard(
+                guild_id=interaction.guild_id,
+                map_type=map_type,
+                floor=floor_key,
+                target_channel=interaction.channel
             )
-        except Exception as e:
-            logger.error(f"Erro no setup_painel para guild {interaction.guild_id}: {e}")
-            await interaction.followup.send(f"❌ **Erro inesperado ao configurar o painel:** {e}", ephemeral=True)
+            msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
+        else:
+            await self.bot.panel_service.update_static_panel(
+                guild_id=interaction.guild_id,
+                map_type=map_type,
+                target_channel=interaction.channel
+            )
+            msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
+            
+        await interaction.followup.send(msg, ephemeral=True)
 
     @setup_painel.error
     async def setup_painel_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
