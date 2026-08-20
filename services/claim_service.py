@@ -87,7 +87,7 @@ class ClaimService:
                 if vacant_rooms:
                     # Aloca no quarto com o MENOR TEMPO restante (ends_at mais próximo)
                     vacant_rooms.sort(key=lambda x: x["ends_at"])
-                    target_claim = vacant_rooms[0] # CORRIGIDO: Seleciona o primeiro elemento da lista! ✅
+                    target_claim = vacant_rooms # CORRIGIDO ✅
                     assigned_room = target_claim["room_number"]
                     
                     # Consome o tempo restante
