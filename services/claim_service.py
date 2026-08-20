@@ -83,11 +83,11 @@ class ClaimService:
 
             # Cenário B: Se todos estiverem ocupados, tenta achar um "Tempo Restante" (VACANT_REMAINING)
             if assigned_room is None:
-                vacant_rooms = [r for r in rows if r["status"] == "VACANT_REMAINING"]
+                vacant_rooms = [dict(r) for r in rows if r["status"] == "VACANT_REMAINING"]
                 if vacant_rooms:
                     # Aloca no quarto com o MENOR TEMPO restante (ends_at mais próximo)
                     vacant_rooms.sort(key=lambda x: x["ends_at"])
-                    target_claim = vacant_rooms # CORRIGIDO ✅
+                    target_claim = vacant_rooms[0] # CORRIGIDO: Pega o primeiro dicionário da lista! ✅
                     assigned_room = target_claim["room_number"]
                     
                     # Consome o tempo restante
