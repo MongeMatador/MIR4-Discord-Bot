@@ -40,8 +40,8 @@ class ClaimCog(commands.Cog):
                     break
             
             if not next_target:
-                # CORRIGIDO: Agora seleciona o primeiro índice [0] da lista de horários antes de dar split! ✅
-                h, m = map(int, target_times[0].split(":"))
+                # CORRIGIDO: Seleciona o índice 0 da lista de horários antes do split! ✅
+                h, m = map(int, target_times.split(":"))
                 next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
 
             diff = next_target - now_server
@@ -50,8 +50,8 @@ class ClaimCog(commands.Cog):
             mins_rem = total_mins % 60
             rem_str = f"{hours_rem}h {mins_rem}m" if hours_rem > 0 else f"{mins_rem}m"
 
-            emoji = "👑" if boss_key == "LEADER_3" else "⚡" if boss_key == "FURY" else "🔥" if boss_key == "FRENZY" else "🕒"
-            label = "LÍDER 3" if boss_key == "LEADER_3" else boss_key
+            emoji = "👑" if boss_key == "LÍDER_3" else "⚡" if boss_key == "FÚRIA" else "🔥" if boss_key == "FRENZY" else "🕒"
+            label = "LÍDER 3" if boss_key == "LÍDER_3" else boss_key
             ticker_lines.append(f"{emoji} **[{label}]** Respawn às {next_target.strftime('%H:%M')} (Falta **{rem_str}**)")
 
         return "\n".join(ticker_lines)
@@ -150,7 +150,6 @@ class ClaimCog(commands.Cog):
                 map_type=map_type,
                 floor=floor_key,
                 target_channel=interaction.channel
-                # A imagem do mapa não será carregada aqui! Ficou 100% limpo no placar público! ✅
             )
             msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
         else:
