@@ -27,7 +27,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot e Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
             )
         else:
             title = "🏔️ PAINEL DE CLAIMS - PICO SECRETO 🏔️"
@@ -35,7 +35,7 @@ class MIR4Embeds:
             desc = (
                 "🇺🇸 **How to claim a spot?**\n• Click on **Claim Spot** below;\n• Select your Floor, Spot, and Tickets.\n\n"
                 "🇧🇷 **Como reservar um spot?**\n• Clique em **Claim Spot** abaixo;\n• Selecione o Andar, Spot e Tickets.\n\n"
-                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot e Tickets."
+                "🇪🇸 **¿Cómo solicitar una ubicación?**\n• Oprima en **Claim Spot** abaixo;\n• Seleccione el Piso, Spot y Tickets."
             )
         
         embed = discord.Embed(title=title, description=desc, color=color, timestamp=datetime.utcnow())
@@ -112,8 +112,13 @@ class MIR4Embeds:
                 else:
                     field_value += f"{room_text}🟢 Disponível\n"
 
-            # GRID SEGURO DE 3 COLUNAS PARA PICO SECRETO ✅
-            use_inline = map_type == "SECRET_PEAK" and spot_name not in ["SUMMON GOBLIN", "SUMMON EVENTS", "BOSS", "SUMMON"]
+            # GRID SEGURO DE 3 COLUNAS LADO A LADO ✅
+            # Agrupa os andares de Pico (A1, A2, N1, N2, S1, S2) em 3 colunas e ADCs na Praça, deixando o visual perfeito!
+            if map_type == "SECRET_PEAK":
+                use_inline = spot_name in ["A1", "A2", "N1", "N2", "S1", "S2"]
+            else:  # MAGIC_SQUARE
+                use_inline = spot_name in ["ADC1", "ADC2", "ADC3"]
+
             embed.add_field(name=f"{emoji} {spot_name}", value=field_value, inline=use_inline)
 
         embed.set_footer(text="MIR4 Real-Time Tracker")
