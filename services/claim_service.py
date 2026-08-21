@@ -90,7 +90,7 @@ class ClaimService:
                 vacant_rooms = [dict(r) for r in rows if r["status"] == "VACANT_REMAINING"]
                 if vacant_rooms:
                     vacant_rooms.sort(key=lambda x: x["ends_at"])
-                    target_claim = vacant_rooms[0]
+                    target_claim = vacant_rooms[0]  # CORRIGIDO: Pega o primeiro dicionário da lista! ✅
                     assigned_room = target_claim["room_number"]
                     target_claim_id = target_claim["id"]
                     action_type = "CLAIM_VACANT"
@@ -131,7 +131,6 @@ class ClaimService:
                 action_type = "CLAIM"
 
         # --- FORA DO CONTEXTO DE CONEXÃO: ATUALIZAÇÕES VISUAIS E LOGS ---
-        # Isso garante que as conexões sejam fechadas e devolvidas ao pool imediatamente, evitando deadlocks!
         if action_type == "CLAIM_VACANT":
             await self.panel_service.update_floor_dashboard(guild_id, map_type, floor)
             await self.log_service.dispatch_claim_log(guild_id, user, map_type, floor, spot_type, assigned_room, "CLAIM_VACANT", "Assumiu tempo restante")
