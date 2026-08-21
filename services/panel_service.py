@@ -49,7 +49,7 @@ class PanelService:
     async def update_floor_dashboard(self, guild_id: int, map_type: str, floor: str, target_channel: discord.TextChannel = None):
         from ui.views import FloorEventButtonsView
         
-        # 1. Fetch floor dashboard settings and release connection immediately
+        # 1. Busca configurações do placar e fecha a conexão imediatamente
         row = None
         async with await DatabaseManager.get_connection() as conn:
             row = await conn.fetchrow(
@@ -60,7 +60,7 @@ class PanelService:
         if not row and not target_channel:
             return
 
-        # 2. Fetch active claims and floor events in a single, clean connection block
+        # 2. Carrega as claims ativas e eventos em um bloco de conexão limpo e isolado
         claims = []
         events_map = {}
         async with await DatabaseManager.get_connection() as conn:
