@@ -53,7 +53,7 @@ class MIR4Embeds:
         return embed
 
     @staticmethod
-    def build_floor_embed(map_type: str, floor_key: str, claims: List[Dict], events_map: Dict, ticker_line: str) -> discord.Embed:
+    def build_floor_embed(map_type: str, floor_key: str, claims: List[Dict], events_map: Dict, ticker_line: str, queues: List[Dict] = None) -> discord.Embed:
         map_label = "Magic Square" if map_type == "MAGIC_SQUARE" else "Secret Peak"
         map_emoji = "🔮" if map_type == "MAGIC_SQUARE" else "🏔️"
         color = discord.Color.purple() if map_type == "MAGIC_SQUARE" else discord.Color.orange()
@@ -112,8 +112,16 @@ class MIR4Embeds:
                 else:
                     field_value += f"{room_text}🟢 Disponível\n"
 
+            # EXIBIÇÃO DA FILA DE ESPERA SE HOUVER ✅
+            if queues:
+                spot_queues = [q for q in queues if q["spot_type"] == spot_name]
+                if spot_queues:
+                    queue_lines = []
+                    for idx, q in enumerate(spot_queues):
+                        queue_lines.append(f"⏱️ **{idx+1}º** <@{q['user_id']}> ({q['tickets'] * 30}m)")
+                    field_value += "👥 **Fila de Espera:**\n" + "\n".join(queue_lines) + "\n"
+
             # GRID SEGURO DE 3 COLUNAS LADO A LADO ✅
-            # Agrupa os andares de Pico (A1, A2, N1, N2, S1, S2) em 3 colunas e ADCs na Praça, deixando o visual perfeito!
             if map_type == "SECRET_PEAK":
                 use_inline = spot_name in ["A1", "A2", "N1", "N2", "S1", "S2"]
             else:  # MAGIC_SQUARE
