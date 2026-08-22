@@ -60,9 +60,10 @@ class PanelService:
         if not row and not target_channel:
             return
 
-        # 2. Carrega as claims ativas e eventos em um bloco de conexão limpo e isolado
+        # 2. Carrega as claims ativas, eventos e filas em um bloco de conexão limpo e isolado
         claims = []
         events_map = {}
+        queues = []
         async with await DatabaseManager.get_connection() as conn:
             rows = await conn.fetch("""
                 SELECT * FROM claims 
@@ -78,12 +79,20 @@ class PanelService:
                 dt = r["last_triggered_at"]
                 events_map[r["event_name"]] = dt.isoformat() if dt else None
 
+            # BUSCA AS FILAS DE ESPERA DIRETAMENTE ✅
+            queue_rows = await conn.fetch("""
+                SELECT * FROM spot_queues
+                WHERE guild_id = $1 AND map_type = $2 AND floor = $3
+                ORDER BY queued_at ASC
+            """, guild_id, map_type, floor)
+            queues = [dict(q) for q in queue_rows]
+
         cog = self.bot.get_cog("ClaimCog")
         ticker = ""
         if cog:
             ticker = cog.calculate_ticker_line(map_type, floor)
             
-        embed = MIR4Embeds.build_floor_embed(map_type, floor, claims, events_map, ticker)
+        embed = MIR4Embeds.build_floor_embed(map_type, floor, claims, events_map, ticker, queues)
         view = FloorEventButtonsView(self.bot, map_type, floor)
         
         if row:
