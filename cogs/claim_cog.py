@@ -40,7 +40,6 @@ class ClaimCog(commands.Cog):
                     break
             
             if not next_target:
-                # CORRIGIDO: Agora seleciona o primeiro índice da lista de horários antes de dar split! ✅
                 h, m = map(int, target_times[0].split(":"))
                 next_target = now_server.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=1)
 
@@ -57,7 +56,12 @@ class ClaimCog(commands.Cog):
         return "\n".join(ticker_lines)
 
     async def check_and_process_queue(self, guild_id: int, map_type: str, floor: str, spot_type: str, room_number: int):
-        spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
+        try:
+            spot_info = Config.MAP_DATA[map_type]["floors"][floor][spot_type]
+        except KeyError:
+            logger.warning(f"Spot {spot_type} não encontrado na configuração para {map_type} {floor}")
+            return
+
         if not spot_info.get("allow_queue", True):
             await self.bot.panel_service.update_floor_dashboard(guild_id, map_type, floor)
             return
@@ -77,34 +81,46 @@ class ClaimCog(commands.Cog):
 
     @tasks.loop(seconds=15)
     async def dashboard_updater(self):
-        now = datetime.utcnow()
-        expired_claims = []
-        async with await DatabaseManager.get_connection() as conn:
-            rows = await conn.fetch(
-                "SELECT * FROM claims WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
-                now
-            )
-            expired_claims = [dict(r) for r in rows]
-
-            if expired_claims:
-                await conn.execute(
-                    "UPDATE claims SET status = 'EXPIRED' WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
+        try:
+            now = datetime.utcnow()
+            expired_claims = []
+            async with await DatabaseManager.get_connection() as conn:
+                rows = await conn.fetch(
+                    "SELECT * FROM claims WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
                     now
                 )
+                expired_claims = [dict(r) for r in rows]
+
+                if expired_claims:
+                    await conn.execute(
+                        "UPDATE claims SET status = 'EXPIRED' WHERE status IN ('ACTIVE', 'VACANT_REMAINING') AND ends_at <= $1",
+                        now
+                    )
+        except Exception as e:
+            logger.error(f"Erro ao buscar/atualizar claims expirados: {e}")
+            return
 
         for claim in expired_claims:
-            guild_id = claim["guild_id"]
             try:
-                fake_user = type('User', (object,), {'mention': f"<@{claim['user_id']}>", 'name': claim['username'], 'display_name': claim['username']})
-                await self.bot.log_service.dispatch_claim_log(guild_id, fake_user, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'], "EXPIRED")
-            except:
-                pass
-            await self.check_and_process_queue(guild_id, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'])
+                guild_id = claim["guild_id"]
+                try:
+                    fake_user = type('User', (object,), {'mention': f"<@{claim['user_id']}>", 'name': claim['username'], 'display_name': claim['username']})
+                    await self.bot.log_service.dispatch_claim_log(guild_id, fake_user, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'], "EXPIRED")
+                except:
+                    pass
+                
+                await self.check_and_process_queue(guild_id, claim['map_type'], claim['floor'], claim['spot_type'], claim['room_number'])
+            except Exception as e:
+                logger.error(f"Erro ao processar fila/expiração para o claim {claim}: {e}")
 
         active_dashboards = []
-        async with await DatabaseManager.get_connection() as conn:
-            rows = await conn.fetch("SELECT guild_id, map_type, floor FROM floor_dashboards")
-            active_dashboards = [dict(r) for r in rows]
+        try:
+            async with await DatabaseManager.get_connection() as conn:
+                rows = await conn.fetch("SELECT guild_id, map_type, floor FROM floor_dashboards")
+                active_dashboards = [dict(r) for r in rows]
+        except Exception as e:
+            logger.error(f"Erro ao buscar dashboards ativos: {e}")
+            return
 
         for d in active_dashboards:
             try:
@@ -144,23 +160,33 @@ class ClaimCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         floor_key = floor if floor else ""
         
-        if floor_key:
-            await self.bot.panel_service.update_floor_dashboard(
-                guild_id=interaction.guild_id,
-                map_type=map_type,
-                floor=floor_key,
-                target_channel=interaction.channel
+        try:
+            if floor_key:
+                await self.bot.panel_service.update_floor_dashboard(
+                    guild_id=interaction.guild_id,
+                    map_type=map_type,
+                    floor=floor_key,
+                    target_channel=interaction.channel
+                )
+                msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
+            else:
+                await self.bot.panel_service.update_static_panel(
+                    guild_id=interaction.guild_id,
+                    map_type=map_type,
+                    target_channel=interaction.channel
+                )
+                msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
+                
+            await interaction.followup.send(msg, ephemeral=True)
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "❌ **Erro de Permissão!** O bot não possui as permissions necessárias neste canal.\n"
+                "Certifique-se de que ele tenha 'Enviar Mensagens', 'Inserir Links' e 'Adicionar Reações' neste canal.",
+                ephemeral=True
             )
-            msg = f"✅ Placar de monitoramento em tempo real de **{map_type} - {floor_key}** ativado!"
-        else:
-            await self.bot.panel_service.update_static_panel(
-                guild_id=interaction.guild_id,
-                map_type=map_type,
-                target_channel=interaction.channel
-            )
-            msg = f"✅ Painel de claims principal de **{map_type}** ativado!"
-            
-        await interaction.followup.send(msg, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Erro no setup_painel para guild {interaction.guild_id}: {e}")
+            await interaction.followup.send(f"❌ **Erro inesperado:** {e}", ephemeral=True)
 
     @setup_painel.error
     async def setup_painel_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
