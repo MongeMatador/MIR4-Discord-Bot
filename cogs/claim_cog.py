@@ -180,7 +180,7 @@ class ClaimCog(commands.Cog):
             await interaction.followup.send(msg, ephemeral=True)
         except discord.Forbidden:
             await interaction.followup.send(
-                "❌ **Erro de Permissão!** O bot não possui as permissions necessárias neste canal.\n"
+                "❌ **Erro de Permissão!** O bot não possui as permissões necessárias neste canal.\n"
                 "Certifique-se de que ele tenha 'Enviar Mensagens', 'Inserir Links' e 'Adicionar Reações' neste canal.",
                 ephemeral=True
             )
